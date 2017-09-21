@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+CAUTION: Do not modify this file unless you know what you are doing.
+         Unexpected results may occur if the code is changed deliberately.
+-->
+<dbmodel pgmodeler-ver="0.9.0" last-position="0,0" last-zoom="1"
+	 default-schema="public" default-owner="postgres">
+<database name="postgres">
+	<role name="postgres"/>
+	<tablespace name="pg_default"/>
+	<comment><![CDATA[default administrative connection database]]></comment>
+</database>
+
+<schema name="public" fill-color="#e1e1e1" sql-disabled="true" faded-out="true">
+</schema>
+
+<extension name="uuid-ossp" cur-version="1.1">
+	<schema name="public"/>
+	<comment><![CDATA[generate universally unique identifiers (UUIDs)]]></comment>
+</extension>
+
+<table name="user">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<position x="500" y="260"/>
+	<column name="id" not-null="true">
+		<type name="bigserial" length="0"/>
+	</column>
+	<column name="mail" not-null="true">
+		<type name="text" length="0"/>
+		<comment><![CDATA[TODO: citext?]]></comment>
+	</column>
+	<column name="password" not-null="true">
+		<type name="text" length="0"/>
+	</column>
+	<column name="created_at" not-null="true" default-value="now()">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="is_deleted" not-null="true" default-value="false">
+		<type name="boolean" length="0"/>
+	</column>
+	<constraint name="user_pk" type="pk-constr" table="public.&quot;user&quot;">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="tag_type" hide-ext-attribs="true">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<position x="60" y="280"/>
+	<column name="id" not-null="true">
+		<type name="serial" length="0"/>
+	</column>
+	<column name="name" not-null="true">
+		<type name="text" length="0"/>
+	</column>
+	<column name="multiple" not-null="true">
+		<type name="boolean" length="0"/>
+	</column>
+	<constraint name="tag_type_pk" type="pk-constr" table="public.tag_type">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="tag">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<position x="140" y="40"/>
+	<column name="id" not-null="true">
+		<type name="bigserial" length="0"/>
+	</column>
+	<column name="id_tag_type" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_track" not-null="true">
+		<type name="bigint" length="0"/>
+	</column>
+	<column name="id_user" not-null="true">
+		<type name="bigint" length="0"/>
+	</column>
+	<column name="revision" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="created_at" not-null="true" default-value="now()">
+		<type name="timestamp" length="0"/>
+	</column>
+	<constraint name="tag_revision_positive" type="ck-constr" table="public.tag">
+			<expression><![CDATA[(revision > 0)]]></expression>
+	</constraint>
+	<constraint name="tag_pk" type="pk-constr" table="public.tag">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="track">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<position x="600" y="40"/>
+	<column name="id" not-null="true">
+		<type name="bigserial" length="0"/>
+	</column>
+	<column name="hash" not-null="true">
+		<type name="integer" length="0" dimension="1"/>
+	</column>
+	<column name="created_at" not-null="true" default-value="now()">
+		<type name="timestamp" length="0"/>
+	</column>
+	<constraint name="track_pk" type="pk-constr" table="public.track">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="user_token">
+	<schema name="public"/>
+	<role name="postgres"/>
+	<position x="840" y="360"/>
+	<column name="id" not-null="true">
+		<type name="bigserial" length="0"/>
+	</column>
+	<column name="id_user" not-null="true">
+		<type name="bigint" length="0"/>
+	</column>
+	<column name="registration" not-null="true">
+		<type name="boolean" length="0"/>
+	</column>
+	<column name="token" not-null="true" default-value="uuid_generate_v4()">
+		<type name="uuid" length="0"/>
+	</column>
+	<column name="created_at" not-null="true" default-value="now()">
+		<type name="timestamp" length="0"/>
+	</column>
+	<constraint name="user_token_pk" type="pk-constr" table="public.user_token">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<constraint name="tag_user_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.&quot;user&quot;" table="public.tag">
+	<columns names="id_user" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="tag_track_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.track" table="public.tag">
+	<columns names="id_track" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="tag_tag_type_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.tag_type" table="public.tag">
+	<columns names="id_tag_type" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="user_token_user_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.&quot;user&quot;" table="public.user_token">
+	<columns names="id_user" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<relationship name="rel_tag_user" type="relfk"
+	 custom-color="#83af1f"
+	 src-table="public.tag"
+	 dst-table="public.&quot;user&quot;"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_tag_track" type="relfk"
+	 custom-color="#5aa578"
+	 src-table="public.tag"
+	 dst-table="public.track"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_tag_tag_type" type="relfk"
+	 custom-color="#4b3e56"
+	 src-table="public.tag"
+	 dst-table="public.tag_type"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_user_token_user" type="relfk"
+	 custom-color="#9ac721"
+	 src-table="public.user_token"
+	 dst-table="public.&quot;user&quot;"
+	 src-required="false" dst-required="false"/>
+
+</dbmodel>
