@@ -4,6 +4,7 @@
 //
 
 
+#include <emscripten.h>
 
 #include <stddef.h>
 #include <stdio.h>
@@ -52,54 +53,46 @@ AudioStreamInput::~AudioStreamInput() {
 
 
 bool AudioStreamInput::ProcessFile(const char* filename, int offset_s/*=0*/, int seconds/*=0*/) {
-    if (!File::Exists(filename) || !IsSupported(filename))
+    if (!IsSupported(filename))
         return false;
 
     _Offset_s = offset_s;
     _Seconds = seconds;
     std::string message = GetCommandLine(filename);
 
-    FILE* fp = popen(message.c_str(), POPEN_MODE);
-    bool ok = (fp != NULL);
-    if (ok)
-    {
-        bool did_work = ProcessFilePointer(fp);
-        bool succeeded = !pclose(fp);
-        ok = did_work && succeeded;
-    }
-    else
-        fprintf(stderr, "AudioStreamInput::ProcessFile can't open %s\n", filename);
-
-    return ok;
+    return DoProcess(message.c_str());
 }
 
 // reads raw signed 16-bit shorts from a file
 bool AudioStreamInput::ProcessRawFile(const char* rawFilename) {
-    FILE* fp = fopen(rawFilename, "r"); // TODO: Windows
-    bool ok = (fp != NULL);
-    if (ok)
-    {
-        ok = ProcessFilePointer(fp);
-        fclose(fp);
-    }
-
-    return ok;
+    return false;
 }
 
 // reads raw signed 16-bit shorts from stdin, for example:
 // ffmpeg -i fille.mp3 -f s16le -ac 1 -ar 11025 - | TestAudioSTreamInput
 bool AudioStreamInput::ProcessStandardInput(void) {
     // TODO - Windows will explodey at not setting O_BINARY on stdin.
-    return ProcessFilePointer(stdin);
+    return false;
 }
 
-bool AudioStreamInput::ProcessFilePointer(FILE* pFile) {
+bool AudioStreamInput::DoProcess(const char *arg) {
+    EM_ASM_({
+        Module["stdout_child"] = new Uint8Array(require('child_process').execSync(Pointer_stringify($0)));
+    }, arg);
+
     std::vector<short*> vChunks;
     uint nSamplesPerChunk = (uint) Params::AudioStreamInput::SamplingRate * Params::AudioStreamInput::SecondsPerChunk;
     uint samplesRead = 0;
     do {
         short* pChunk = new short[nSamplesPerChunk];
-        samplesRead = fread(pChunk, sizeof (short), nSamplesPerChunk, pFile);
+        samplesRead = EM_ASM_INT({
+            var stdout_chunk_view = Module["stdout_child"].subarray(0, 2 * $0);
+            HEAPU8.set(stdout_chunk_view, $1);
+            Module["stdout_child"] = Module["stdout_child"].subarray(2 * $0);
+            return stdout_chunk_view.length / 2;
+        }, nSamplesPerChunk, pChunk);
+        // samplesRead = fread(pChunk, sizeof (short), nSamplesPerChunk, pFile);
+
         _NumberSamples += samplesRead;
         vChunks.push_back(pChunk);
     } while (samplesRead > 0);
@@ -121,12 +114,7 @@ bool AudioStreamInput::ProcessFilePointer(FILE* pFile) {
     }
     assert(samplesLeft == 0);
 
-    int error = ferror(pFile);
-    bool success = error == 0;
-
-    if (!success)
-        perror("ProcessFilePointer error");
-    return success;
+    return 1;
 }
 
 

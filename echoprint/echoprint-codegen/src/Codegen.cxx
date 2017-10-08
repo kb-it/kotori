@@ -85,7 +85,7 @@ string Codegen::compress(const string& s) {
     deflateEnd(&stream);
 
     // base64 the zlib'd code string
-    string encoded = base64_encode(compressed, compressed_length, true);
+    string encoded = base64_encode(compressed, compressed_length, false);
     delete [] compressed;
     return encoded;
 }

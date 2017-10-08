@@ -185,24 +185,13 @@ char *make_json_string(codegen_response_t* response) {
     if (response->error != NULL) {
         return response->error;
     }
-    
-    // Get the ID3 tag information.
-    auto_ptr<Metadata> pMetadata(new Metadata(response->filename));
 
     // preamble + codelen
     char* output = (char*) malloc(sizeof(char)*(16384 + strlen(response->codegen->getCodeString().c_str()) ));
 
-    sprintf(output,"{\"metadata\":{\"artist\":\"%s\", \"release\":\"%s\", \"title\":\"%s\", \"genre\":\"%s\", \"bitrate\":%d,"
-                    "\"sample_rate\":%d, \"duration\":%d, \"filename\":\"%s\", \"samples_decoded\":%d, \"given_duration\":%d,"
+    sprintf(output,"{\"metadata\":{\"filename\":\"%s\", \"samples_decoded\":%d, \"given_duration\":%d,"
                     " \"start_offset\":%d, \"version\":%2.2f, \"codegen_time\":%2.6f, \"decode_time\":%2.6f}, \"code_count\":%d,"
                     " \"code\":\"%s\", \"tag\":%d}",
-        escape(pMetadata->Artist()).c_str(),
-        escape(pMetadata->Album()).c_str(),
-        escape(pMetadata->Title()).c_str(),
-        escape(pMetadata->Genre()).c_str(),
-        pMetadata->Bitrate(),
-        pMetadata->SampleRate(),
-        pMetadata->Seconds(),
         escape(response->filename).c_str(),
         response->numSamples,
         response->duration,
@@ -249,8 +238,6 @@ int main(int argc, char** argv) {
 
         if(count == 0) throw std::runtime_error("No files given.\n");
 
-
-#ifdef _WIN32
         // Threading doesn't work in windows yet.
         for(int i=0;i<count;i++) {
             codegen_response_t* response = codegen_file((char*)files[i].c_str(), start_offset, duration, i);
@@ -263,77 +250,6 @@ int main(int argc, char** argv) {
             free(output);
         }
         return 0;
-
-#else
-
-        // Figure out how many threads to use based on # of cores
-        int num_threads = getNumCores();
-        if (num_threads > 8) num_threads = 8;
-        if (num_threads < 2) num_threads = 2;
-        if (num_threads > count) num_threads = count;
-
-        // Setup threading
-        pthread_t *t = (pthread_t*)malloc(sizeof(pthread_t)*num_threads);
-        thread_parm_t **parm = (thread_parm_t**)malloc(sizeof(thread_parm_t*)*num_threads);
-        pthread_attr_t *attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t)*num_threads);
-
-        // Kick off the first N threads
-        int still_left = count-1-already;
-        for(int i=0;i<num_threads;i++) {
-            parm[i] = (thread_parm_t *)malloc(sizeof(thread_parm_t));
-            parm[i]->filename = (char*)files[still_left].c_str();
-            parm[i]->start_offset = start_offset;
-            parm[i]->tag = still_left;
-            parm[i]->duration = duration;
-            parm[i]->done = 0;
-            still_left--;
-            pthread_attr_init(&attr[i]);
-            pthread_attr_setdetachstate(&attr[i], PTHREAD_CREATE_DETACHED);
-            // Kick off the thread
-            if (pthread_create(&t[i], &attr[i], threaded_codegen_file, (void*)parm[i]))
-                throw std::runtime_error("Problem creating thread\n");
-        }
-
-        int done = 0;
-        // Now wait for the threads to come back, and also kick off new ones
-        while(done<count) {
-            // Check which threads are done
-            for(int i=0;i<num_threads;i++) {
-                if (parm[i]->done) {
-                    parm[i]->done = 0;
-                    done++;
-                    codegen_response_t *response = (codegen_response_t*)parm[i]->response;
-                    char *json = make_json_string(response);
-                    print_json_to_screen(json, count, done);
-                    if (response->codegen) {
-                        delete response->codegen;
-                    }
-                    free(parm[i]->response);
-                    free(json);
-                    // More to do? Start a new one on this just finished thread
-                    if(still_left >= 0) {
-                        parm[i]->tag = still_left;
-                        parm[i]->filename = (char*)files[still_left].c_str();
-                        still_left--;
-                        int err= pthread_create(&t[i], &attr[i], threaded_codegen_file, (void*)parm[i]);
-                        if(err)
-                            throw std::runtime_error("Problem creating thread\n");
-
-                    }
-                }
-            }
-        }
-
-        // Clean up threads
-        for(int i=0;i<num_threads;i++) {
-            free(parm[i]);
-        }
-        free(t);
-        free(parm);
-        free(attr);
-        return 0;
-
-#endif // _WIN32
     }
     catch(std::runtime_error& ex) {
         fprintf(stderr, "%s\n", ex.what());
