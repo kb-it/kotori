@@ -11,12 +11,10 @@ CXX=em++
 CC=emcc
 #OPTFLAGS=-g -O0
 OPTFLAGS=-O3 -DBOOST_UBLAS_NDEBUG -DNDEBUG
-BOOST_CFLAGS=-I$(shell pwd)/include/ -I$(shell pwd)/deps/zlib
-TAGLIB_CFLAGS=`taglib-config --cflags`
-TAGLIB_LIBS=`taglib-config --libs`
-CXXFLAGS=-Wall $(BOOST_CFLAGS) $(TAGLIB_CFLAGS) -fPIC $(OPTFLAGS) -s USE_PTHREADS=1
+
+CXXFLAGS=-Wall $(BOOST_CFLAGS) -fPIC $(OPTFLAGS) -s USE_PTHREADS=1
 CFLAGS=-Wall -fPIC $(OPTFLAGS) -s USE_PTHREADS=1
-LDFLAGS=$(TAGLIB_LIBS) $(OPTFLAGS)
+LDFLAGS=$(OPTFLAGS)
 LIBNAME=libcodegen.bc
 SONAME=$(LIBNAME).$(VERSION_MAJ)
 
@@ -29,7 +27,7 @@ MODULES_LIB = \
     MatrixUtility.o \
     SubbandAnalysis.o \
     Whitening.o
-MODULES = $(MODULES_LIB) Metadata.o
+MODULES = $(MODULES_LIB)
 
 all: libcodegen echoprint-codegen
 

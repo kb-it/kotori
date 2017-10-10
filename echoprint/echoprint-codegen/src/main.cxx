@@ -15,7 +15,6 @@
 #include <stdexcept>
 
 #include "AudioStreamInput.h"
-#include "Metadata.h"
 #include "Codegen.h"
 #include <string>
 #define MAX_FILES 200000
