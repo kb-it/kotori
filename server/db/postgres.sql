@@ -110,6 +110,7 @@ CREATE TABLE public.album(
 	id bigserial NOT NULL,
 	id_user bigint NOT NULL,
 	name text NOT NULL,
+	revision integer NOT NULL,
 	created_at timestamp NOT NULL DEFAULT NOW(),
 	CONSTRAINT album_pk PRIMARY KEY (id)
 

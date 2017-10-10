@@ -156,6 +156,9 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="name" not-null="true">
 		<type name="text" length="0"/>
 	</column>
+	<column name="revision" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
 	<column name="created_at" not-null="true" default-value="NOW()">
 		<type name="timestamp" length="0"/>
 	</column>
