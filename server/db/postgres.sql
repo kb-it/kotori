@@ -107,11 +107,11 @@ ALTER TABLE public.user_token OWNER TO postgres;
 -- object: public.album | type: TABLE --
 -- DROP TABLE IF EXISTS public.album CASCADE;
 CREATE TABLE public.album(
-	id_album bigserial NOT NULL,
+	id bigserial NOT NULL,
 	id_user bigint NOT NULL,
 	name text NOT NULL,
 	created_at timestamp NOT NULL DEFAULT NOW(),
-	CONSTRAINT album_pk PRIMARY KEY (id_album)
+	CONSTRAINT album_pk PRIMARY KEY (id)
 
 );
 -- ddl-end --
@@ -182,7 +182,7 @@ ON DELETE CASCADE ON UPDATE CASCADE;
 -- object: track_album_album_fk | type: CONSTRAINT --
 -- ALTER TABLE public.track_album DROP CONSTRAINT IF EXISTS track_album_album_fk CASCADE;
 ALTER TABLE public.track_album ADD CONSTRAINT track_album_album_fk FOREIGN KEY (id_album)
-REFERENCES public.album (id_album) MATCH FULL
+REFERENCES public.album (id) MATCH FULL
 ON DELETE CASCADE ON UPDATE CASCADE;
 -- ddl-end --
 

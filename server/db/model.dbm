@@ -147,7 +147,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<schema name="public"/>
 	<role name="postgres"/>
 	<position x="1200" y="20"/>
-	<column name="id_album" not-null="true">
+	<column name="id" not-null="true">
 		<type name="bigserial" length="0"/>
 	</column>
 	<column name="id_user" not-null="true">
@@ -160,7 +160,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 		<type name="timestamp" length="0"/>
 	</column>
 	<constraint name="album_pk" type="pk-constr" table="public.album">
-		<columns names="id_album" ref-type="src-columns"/>
+		<columns names="id" ref-type="src-columns"/>
 	</constraint>
 </table>
 
@@ -224,7 +224,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <constraint name="track_album_album_fk" type="fk-constr" comparison-type="MATCH FULL"
 	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.album" table="public.track_album">
 	<columns names="id_album" ref-type="src-columns"/>
-	<columns names="id_album" ref-type="dst-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
 <relationship name="rel_tag_user" type="relfk"
