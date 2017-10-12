@@ -1,0 +1,5 @@
+# echoprint extension
+comment = 'echoprint stuff'
+default_version = '1.0'
+module_pathname = '$libdir/pg_echoprint'
+relocatable = true

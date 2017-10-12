@@ -1,0 +1,6 @@
+/**/
+
+CREATE FUNCTION echoprint_compare(integer[], integer[])
+RETURNS float4
+AS 'MODULE_PATHNAME'
+LANGUAGE C IMMUTABLE STRICT COST 1000;
