@@ -1,11 +1,11 @@
 # Kotori
-Kotori (japanese: songbird) is a server- and client-side application for managing and tagging local songfiles, which offers features for detecting file duplicates by checking audio-fingerprints.
+Kotori (japanese: songbird) is a server- and client-side application for managing and tagging local music-files, which offers features for detecting file duplicates by checking audio-fingerprints.
 
 ## Concept
 
 ### Managing application (Web UI)
 
-* Web application for managing and editing song information
+* Web application for managing and editing track information
 * Authorization required for editing
 * Datasets can be filtered
 * Snapshots are created on each dataset modification
@@ -21,7 +21,7 @@ Kotori (japanese: songbird) is a server- and client-side application for managin
 ### Match tool (Local tool)
 
 * Native client-side application
-* Receives song information for local song-files
+* Receives track information for local music-files
 * Supported file types are:
     * *.mp3
 * Capable of overwriting or merging ID3 tags of specified files with received values
@@ -38,11 +38,11 @@ Kotori (japanese: songbird) is a server- and client-side application for managin
         * -l, --listduplicate
         Find and print paths of all duplicates to stdout, sorted by quality, best quality first
         * -m, --merge
-        Merge existing ID3 tag values of specified songs with received information
+        Merge existing ID3 tag values of specified tracks with received information
         * -o, --overwrite
         Overwrite existing ID3 tag values of specified files with received values
         * -r, --report
-        List received information per specified song and print to stdout 
+        List received information per specified track and print to stdout 
         * -v, --verbose
         Print further information during progress
     * Examples:
@@ -50,12 +50,12 @@ Kotori (japanese: songbird) is a server- and client-side application for managin
         node run kotori.js -l *.mp3 > output.txt
         * Merge received information with ID3 tags of mp3-files in current path and print status during progress:
         node run kotori.js -m -v *.mp3
-        * Print all received song information for specified file
+        * Print all received track information for specified file
         node run kotori.js -r "foo - bar.mp3" 
 
 * GUI:
     * Wrapper for CLI
-    * Drag-and-drop functionality for selecting song files (folders / files)
+    * Drag-and-drop functionality for selecting tracks (folders / files)
     * Offers different actions for handling each duplicate:
         * Keep file with best quality only
         * Write paths of duplicates to file
@@ -64,10 +64,79 @@ Kotori (japanese: songbird) is a server- and client-side application for managin
 
 ## Use cases
 
-* Detect duplicates of songs on your HDD
+* Detect duplicates of tracks on your HDD
 
-Kotori is capable of detecting duplicates of locally stored songs, by creating audio-fingerprints. By creating audio-fingerprints even unnamed duplicated files will be recognized or duplicates of different quality, size and song length.
+Kotori is capable of detecting duplicates of locally stored tracks, by creating audio-fingerprints. By creating audio-fingerprints even unnamed duplicated files will be recognized or duplicates of different quality, size and track length.
 
-* Add proper ID3 tags to your songs
+* Add proper ID3 tags to your tracks
 
-Missing or incomplete ID3 tags of songs in a huge music collection can be easily set and merged from our database, which can be collaboratively completed on our web application.
+Missing or incomplete ID3 tags of tracks in a huge music collection can be easily set and merged from our database, which can be collaboratively completed on our web application.
+
+## Functionality
+
+### Backend
+
+#### Technology
+
+* PostgreSQL
+* NodeJS
+* NodeJS packages:
+    * Express
+* RESTful API
+
+#### REST-API
+
+##### Paths
+
+* /v1/tracks/query
+    * Method: POST
+    * Accept: application/json
+    * Description:
+        Returns all available song information from DB for specific songs, which must be determined by its fingerprints.
+        Fingerprints of songs must be passed as JSON in request-body.
+    * Example:
+        * Request-Body:
+            ```
+            [
+                {
+                    "fingerprint": [0, 0, 0],
+                },
+                {
+                    "fingerprint": [0, 0],
+                },
+                ...
+            ]
+        * Response-Body:
+            ```
+            [
+                {
+                    "fingerprint": [0, 0, 0],
+                    "results": [
+                        {
+                            "trackId": "1",
+                            "artist": "John Doe",
+                            ...
+                        },
+                        {
+                            "trackId": "20",
+                        },
+                        ...
+                    ]
+                },
+                {
+                    "fingerprint": [0, 0],
+                    "results": [
+                        {
+                            "trackId": "12",
+                            "artist": "Jane Doe",
+                            ...
+                        },
+                        {
+                            "trackId": "2",
+                            ...
+                        },
+                        ...
+                    ]
+                },
+                ...
+            ]
