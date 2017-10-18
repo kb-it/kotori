@@ -1,0 +1,33 @@
+version: '3'
+services:
+  node:
+    image: node:8.6.0
+    restart: on-failure
+    environment:
+      - POSTGRES_PASSWORD=E.pL0_UJoia,:IB4
+      - POSTGRES_USER=user
+      - POSTGRES_HOST=postgres
+      - EXPRESS_PORT=3000
+    ports:
+      - "3000:3000"
+    command: npm run --prefix /var/lib/node/server/ start
+    volumes:
+      - ../server/:/var/lib/node/server/
+    logging:
+      driver: json-file
+      options:
+        max-size: "1024k"
+        max-file: "100"
+  postgres:
+    build: ../echoprint/postgres_echoprint/
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=E.pL0_UJoia,:IB4
+      - POSTGRES_USER=user
+    expose:
+      - "5432"
+    volumes:
+      - ./postgresql/etc/:/etc/postgresql
+      - ./postgresql/lib/:/var/lib/postgresql
+      - ./logs/postgresql/:/var/log/postgresql
+      - ./../server/db/:/tmp/postgres/
