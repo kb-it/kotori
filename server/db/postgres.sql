@@ -48,7 +48,6 @@ ALTER TABLE public."user" OWNER TO postgres;
 CREATE TABLE public.tag_type(
 	id serial NOT NULL,
 	name text NOT NULL,
-	multiple boolean NOT NULL,
 	CONSTRAINT tag_type_pk PRIMARY KEY (id)
 
 );
@@ -75,18 +74,17 @@ CREATE TABLE public.tag(
 ALTER TABLE public.tag OWNER TO postgres;
 -- ddl-end --
 
--- object: public.track | type: TABLE --
--- DROP TABLE IF EXISTS public.track CASCADE;
-CREATE TABLE public.track(
+-- object: public.fingerprint | type: TABLE --
+-- DROP TABLE IF EXISTS public.fingerprint CASCADE;
+CREATE TABLE public.fingerprint(
 	id bigserial NOT NULL,
-	id_user bigint NOT NULL,
 	hash integer[] NOT NULL,
 	created_at timestamp NOT NULL DEFAULT now(),
-	CONSTRAINT track_pk PRIMARY KEY (id)
+	CONSTRAINT fingerprint_pk PRIMARY KEY (id)
 
 );
 -- ddl-end --
-ALTER TABLE public.track OWNER TO postgres;
+ALTER TABLE public.fingerprint OWNER TO postgres;
 -- ddl-end --
 
 -- object: public.user_token | type: TABLE --
@@ -104,37 +102,31 @@ CREATE TABLE public.user_token(
 ALTER TABLE public.user_token OWNER TO postgres;
 -- ddl-end --
 
--- object: public.album | type: TABLE --
--- DROP TABLE IF EXISTS public.album CASCADE;
-CREATE TABLE public.album(
+-- object: public.track | type: TABLE --
+-- DROP TABLE IF EXISTS public.track CASCADE;
+CREATE TABLE public.track(
 	id bigserial NOT NULL,
 	id_user bigint NOT NULL,
-	name text NOT NULL,
-	revision integer NOT NULL,
+	id_fingerprint bigint NOT NULL,
 	created_at timestamp NOT NULL DEFAULT NOW(),
-	CONSTRAINT album_pk PRIMARY KEY (id)
+	CONSTRAINT track_pk PRIMARY KEY (id)
 
 );
 -- ddl-end --
-ALTER TABLE public.album OWNER TO postgres;
--- ddl-end --
-
--- object: public.track_album | type: TABLE --
--- DROP TABLE IF EXISTS public.track_album CASCADE;
-CREATE TABLE public.track_album(
-	id_track bigint NOT NULL,
-	id_album bigint NOT NULL,
-	CONSTRAINT track_album_pk PRIMARY KEY (id_track,id_album)
-
-);
--- ddl-end --
-ALTER TABLE public.track_album OWNER TO postgres;
+ALTER TABLE public.track OWNER TO postgres;
 -- ddl-end --
 
 -- object: tag_user_fk | type: CONSTRAINT --
 -- ALTER TABLE public.tag DROP CONSTRAINT IF EXISTS tag_user_fk CASCADE;
 ALTER TABLE public.tag ADD CONSTRAINT tag_user_fk FOREIGN KEY (id_user)
 REFERENCES public."user" (id) MATCH FULL
+ON DELETE RESTRICT ON UPDATE CASCADE;
+-- ddl-end --
+
+-- object: tag_tag_type_fk | type: CONSTRAINT --
+-- ALTER TABLE public.tag DROP CONSTRAINT IF EXISTS tag_tag_type_fk CASCADE;
+ALTER TABLE public.tag ADD CONSTRAINT tag_tag_type_fk FOREIGN KEY (id_tag_type)
+REFERENCES public.tag_type (id) MATCH FULL
 ON DELETE RESTRICT ON UPDATE CASCADE;
 -- ddl-end --
 
@@ -145,11 +137,11 @@ REFERENCES public.track (id) MATCH FULL
 ON DELETE CASCADE ON UPDATE CASCADE;
 -- ddl-end --
 
--- object: tag_tag_type_fk | type: CONSTRAINT --
--- ALTER TABLE public.tag DROP CONSTRAINT IF EXISTS tag_tag_type_fk CASCADE;
-ALTER TABLE public.tag ADD CONSTRAINT tag_tag_type_fk FOREIGN KEY (id_tag_type)
-REFERENCES public.tag_type (id) MATCH FULL
-ON DELETE RESTRICT ON UPDATE CASCADE;
+-- object: user_token_user_fk | type: CONSTRAINT --
+-- ALTER TABLE public.user_token DROP CONSTRAINT IF EXISTS user_token_user_fk CASCADE;
+ALTER TABLE public.user_token ADD CONSTRAINT user_token_user_fk FOREIGN KEY (id_user)
+REFERENCES public."user" (id) MATCH FULL
+ON DELETE CASCADE ON UPDATE CASCADE;
 -- ddl-end --
 
 -- object: track_user_fk | type: CONSTRAINT --
@@ -159,32 +151,11 @@ REFERENCES public."user" (id) MATCH FULL
 ON DELETE RESTRICT ON UPDATE CASCADE;
 -- ddl-end --
 
--- object: user_token_user_fk | type: CONSTRAINT --
--- ALTER TABLE public.user_token DROP CONSTRAINT IF EXISTS user_token_user_fk CASCADE;
-ALTER TABLE public.user_token ADD CONSTRAINT user_token_user_fk FOREIGN KEY (id_user)
-REFERENCES public."user" (id) MATCH FULL
-ON DELETE CASCADE ON UPDATE CASCADE;
--- ddl-end --
-
--- object: album_user_fk | type: CONSTRAINT --
--- ALTER TABLE public.album DROP CONSTRAINT IF EXISTS album_user_fk CASCADE;
-ALTER TABLE public.album ADD CONSTRAINT album_user_fk FOREIGN KEY (id_user)
-REFERENCES public."user" (id) MATCH FULL
+-- object: track_fingerprint_fk | type: CONSTRAINT --
+-- ALTER TABLE public.track DROP CONSTRAINT IF EXISTS track_fingerprint_fk CASCADE;
+ALTER TABLE public.track ADD CONSTRAINT track_fingerprint_fk FOREIGN KEY (id_fingerprint)
+REFERENCES public.fingerprint (id) MATCH FULL
 ON DELETE RESTRICT ON UPDATE CASCADE;
--- ddl-end --
-
--- object: track_album_track_fk | type: CONSTRAINT --
--- ALTER TABLE public.track_album DROP CONSTRAINT IF EXISTS track_album_track_fk CASCADE;
-ALTER TABLE public.track_album ADD CONSTRAINT track_album_track_fk FOREIGN KEY (id_track)
-REFERENCES public.track (id) MATCH FULL
-ON DELETE CASCADE ON UPDATE CASCADE;
--- ddl-end --
-
--- object: track_album_album_fk | type: CONSTRAINT --
--- ALTER TABLE public.track_album DROP CONSTRAINT IF EXISTS track_album_album_fk CASCADE;
-ALTER TABLE public.track_album ADD CONSTRAINT track_album_album_fk FOREIGN KEY (id_album)
-REFERENCES public.album (id) MATCH FULL
-ON DELETE CASCADE ON UPDATE CASCADE;
 -- ddl-end --
 
 

@@ -22,7 +22,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <table name="user">
 	<schema name="public"/>
 	<role name="postgres"/>
-	<position x="580" y="360"/>
+	<position x="520" y="360"/>
 	<column name="id" not-null="true">
 		<type name="bigserial" length="0"/>
 	</column>
@@ -44,7 +44,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</constraint>
 </table>
 
-<table name="tag_type" hide-ext-attribs="true">
+<table name="tag_type">
 	<schema name="public"/>
 	<role name="postgres"/>
 	<position x="100" y="360"/>
@@ -53,9 +53,6 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="name" not-null="true">
 		<type name="text" length="0"/>
-	</column>
-	<column name="multiple" not-null="true">
-		<type name="boolean" length="0"/>
 	</column>
 	<constraint name="tag_type_pk" type="pk-constr" table="public.tag_type">
 		<columns names="id" ref-type="src-columns"/>
@@ -98,15 +95,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</constraint>
 </table>
 
-<table name="track">
+<table name="fingerprint">
 	<schema name="public"/>
 	<role name="postgres"/>
-	<position x="620" y="40"/>
+	<position x="900" y="100"/>
 	<column name="id" not-null="true">
 		<type name="bigserial" length="0"/>
-	</column>
-	<column name="id_user" not-null="true">
-		<type name="bigint" length="0"/>
 	</column>
 	<column name="hash" not-null="true">
 		<type name="integer" length="0" dimension="1"/>
@@ -114,7 +108,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="created_at" not-null="true" default-value="now()">
 		<type name="timestamp" length="0"/>
 	</column>
-	<constraint name="track_pk" type="pk-constr" table="public.track">
+	<constraint name="fingerprint_pk" type="pk-constr" table="public.fingerprint">
 		<columns names="id" ref-type="src-columns"/>
 	</constraint>
 </table>
@@ -122,7 +116,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <table name="user_token">
 	<schema name="public"/>
 	<role name="postgres"/>
-	<position x="980" y="400"/>
+	<position x="880" y="260"/>
 	<column name="id" not-null="true">
 		<type name="bigserial" length="0"/>
 	</column>
@@ -143,42 +137,24 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</constraint>
 </table>
 
-<table name="album">
+<table name="track">
 	<schema name="public"/>
 	<role name="postgres"/>
-	<position x="1200" y="20"/>
+	<position x="520" y="40"/>
 	<column name="id" not-null="true">
 		<type name="bigserial" length="0"/>
 	</column>
 	<column name="id_user" not-null="true">
 		<type name="bigint" length="0"/>
 	</column>
-	<column name="name" not-null="true">
-		<type name="text" length="0"/>
-	</column>
-	<column name="revision" not-null="true">
-		<type name="integer" length="0"/>
+	<column name="id_fingerprint" not-null="true">
+		<type name="bigint" length="0"/>
 	</column>
 	<column name="created_at" not-null="true" default-value="NOW()">
 		<type name="timestamp" length="0"/>
 	</column>
-	<constraint name="album_pk" type="pk-constr" table="public.album">
+	<constraint name="track_pk" type="pk-constr" table="public.track">
 		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-</table>
-
-<table name="track_album">
-	<schema name="public"/>
-	<role name="postgres"/>
-	<position x="1100" y="200"/>
-	<column name="id_track" not-null="true">
-		<type name="bigint" length="0"/>
-	</column>
-	<column name="id_album" not-null="true">
-		<type name="bigint" length="0"/>
-	</column>
-	<constraint name="track_album_pk" type="pk-constr" table="public.track_album">
-		<columns names="id_track,id_album" ref-type="src-columns"/>
 	</constraint>
 </table>
 
@@ -188,21 +164,15 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
-<constraint name="tag_track_fk" type="fk-constr" comparison-type="MATCH FULL"
-	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.track" table="public.tag">
-	<columns names="id_track" ref-type="src-columns"/>
-	<columns names="id" ref-type="dst-columns"/>
-</constraint>
-
 <constraint name="tag_tag_type_fk" type="fk-constr" comparison-type="MATCH FULL"
 	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.tag_type" table="public.tag">
 	<columns names="id_tag_type" ref-type="src-columns"/>
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
-<constraint name="track_user_fk" type="fk-constr" comparison-type="MATCH FULL"
-	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.&quot;user&quot;" table="public.track">
-	<columns names="id_user" ref-type="src-columns"/>
+<constraint name="tag_track_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.track" table="public.tag">
+	<columns names="id_track" ref-type="src-columns"/>
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
@@ -212,21 +182,15 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
-<constraint name="album_user_fk" type="fk-constr" comparison-type="MATCH FULL"
-	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.&quot;user&quot;" table="public.album">
+<constraint name="track_user_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.&quot;user&quot;" table="public.track">
 	<columns names="id_user" ref-type="src-columns"/>
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
-<constraint name="track_album_track_fk" type="fk-constr" comparison-type="MATCH FULL"
-	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.track" table="public.track_album">
-	<columns names="id_track" ref-type="src-columns"/>
-	<columns names="id" ref-type="dst-columns"/>
-</constraint>
-
-<constraint name="track_album_album_fk" type="fk-constr" comparison-type="MATCH FULL"
-	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.album" table="public.track_album">
-	<columns names="id_album" ref-type="src-columns"/>
+<constraint name="track_fingerprint_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.fingerprint" table="public.track">
+	<columns names="id_fingerprint" ref-type="src-columns"/>
 	<columns names="id" ref-type="dst-columns"/>
 </constraint>
 
@@ -234,12 +198,6 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 custom-color="#83af1f"
 	 src-table="public.tag"
 	 dst-table="public.&quot;user&quot;"
-	 src-required="false" dst-required="false"/>
-
-<relationship name="rel_tag_track" type="relfk"
-	 custom-color="#5aa578"
-	 src-table="public.tag"
-	 dst-table="public.track"
 	 src-required="false" dst-required="false"/>
 
 <relationship name="rel_tag_tag_type" type="relfk"
@@ -254,24 +212,19 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.&quot;user&quot;"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="rel_track_album_track" type="relfk"
-	 src-table="public.track_album"
-	 dst-table="public.track"
-	 src-required="false" dst-required="false"/>
-
-<relationship name="rel_track_album_album" type="relfk"
-	 src-table="public.track_album"
-	 dst-table="public.album"
-	 src-required="false" dst-required="false"/>
-
 <relationship name="rel_track_user" type="relfk"
 	 src-table="public.track"
 	 dst-table="public.&quot;user&quot;"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="rel_album_user" type="relfk"
-	 src-table="public.album"
-	 dst-table="public.&quot;user&quot;"
+<relationship name="rel_track_fingerprint" type="relfk"
+	 src-table="public.track"
+	 dst-table="public.fingerprint"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_tag_track" type="relfk"
+	 src-table="public.tag"
+	 dst-table="public.track"
 	 src-required="false" dst-required="false"/>
 
 </dbmodel>
