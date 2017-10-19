@@ -5,30 +5,25 @@ import {Client, ClientConfig, QueryResult} from "pg";
 type Fingerprint = number[];
 
 type MetaDataRow = {
+    // the queried fingerprint
+    query_idx: number;
+    // the matching fingerprint
     fingerprint: Fingerprint;
     fingerprint_id: number;
+    // a score indicating how similar the given query fingerprint and fingerprint are
+    // a number 0 <= score <= 1
+    score: number,
     track_id: number;
     tag_type_name: string;
     tag_value: Buffer;
 }
 
-type FingerprintIdMap = {
-    [fingerprintId: string]: {
-        fingerprint: Fingerprint;
-        results: {
-            [trackId: string]: {
-                [meta: string]: any
-            }
-        }
-    };
-}
-
 export interface MetaData {
     fingerprint: Fingerprint;
 }
-
 export interface TrackMetaData {
     trackId: number;
+    score: number;
 }
 
 export type FingerprintResult = {
@@ -46,6 +41,7 @@ export class SongModel {
     };
     private client: Client;
 
+    // TODO: remove testMode! thats ugly
     public constructor(testMode?: boolean) {
         if (testMode) {
             this.clientConfig.database += "_test";
@@ -56,115 +52,38 @@ export class SongModel {
 
     /**
      * Returns meta-data of specific tracks by its fingerprint
-     * @param {number[][]} fingerprints Fingerprints of specific tracks
+     * @param {number[][]} fingerprints Query tracks matching those given fingerprints
      * @returns {MetaDataRow[]} Table-rows consisting of track-meta-data as returned from DBS
      * 
      */
     private async requestMetaData(fingerprints: number[][]): Promise<MetaDataRow[]> {
-        let sql: string = `
-                SELECT DISTINCT ON (track.id, tag_type.id)
-                    last_value(track.id) OVER (
-                        PARTITION BY
-                            track.id,
-                            tag_type.id
-                        ORDER BY tag.revision DESC
-                    ) AS track_id,
-                    fingerprint.id AS fingerprint_id,
-                    fingerprint.hash AS fingerprint,
-                    tag_type.name AS tag_type_name,
-                    tag.value AS tag_value
-                FROM fingerprint
-                INNER JOIN track
-                    ON track.id_fingerprint = fingerprint.id
-                INNER JOIN tag
-                    ON tag.id_track = track.id
-                INNER JOIN tag_type
-                    ON tag.id_tag_type = tag_type.id
-                WHERE
-                    EXISTS (SELECT 1 FROM (VALUES 
-                        ${Array(fingerprints.length).fill(0).map((e: number, i: number)=>"($"+(i+1)+")").join(",")}
-                    ) fps WHERE fps.column1::int[] = fingerprint.hash)
+        let sql: string = `SELECT DISTINCT ON (track.id, tag_type.id)
+                last_value(track.id) OVER (
+                    PARTITION BY
+                        track.id,
+                        tag_type.id
+                    ORDER BY tag.revision DESC
+                ) AS track_id,
+                tag_type.name AS tag_type_name,
+                tag.value AS tag_value,
+                fps.column1 AS query_idx, matches.hash AS fingerprint, matches.id AS fingerprint_id, matches.score 
+                FROM (
+                    VALUES ${ Array(fingerprints.length).fill(0).map((e: number, i: number) => "(" + i + ", $" + (i+1) + ")").join(",") }
+                ) fps JOIN LATERAL (
+                    SELECT fingerprint.id,
+                           fingerprint.hash,
+                           echoprint_compare(fps.column2::int[], fingerprint.hash::int[]) AS score
+                    FROM fingerprint
+                    ORDER BY score DESC
+                    LIMIT 15
+                ) matches ON matches.score>0
+                INNER JOIN track ON track.id_fingerprint = matches.id
+                INNER JOIN tag ON tag.id_track = track.id
+                INNER JOIN tag_type ON tag.id_tag_type = tag_type.id
             `,
             results: QueryResult = await this.client.query(sql, fingerprints),
             rows: MetaDataRow[] = results.rows;
         return rows;
-    }
-    
-    /**
-     * Creates objects consisting of meta-data of specific tracks and maps them to their related fingerprints
-     * @param {MetaDataRow[]} rows Table-rows consisting of track-meta-data as returned from DBS
-     * @returns {FingerprintIdMap} Object having ids of fingerprints as specified in DB as keys and Objects as values,
-     *      which consist of the connected fingerprint, and related track-meta-data
-     */
-    private mapTracksToFingerprintIds(rows: MetaDataRow[]): FingerprintIdMap {
-        const trackMap: FingerprintIdMap = rows.reduce((trackMap: FingerprintIdMap, row: MetaDataRow) => {
-            const fingerprintId: string = String(row.fingerprint_id),
-                fingerprint: number[] = row.fingerprint,
-                trackId: string =  String(row.track_id),
-                tagName: string = row.tag_type_name,
-                tagValue: string = Utils.encodeTagValue(row.tag_value);
-            let track: {
-                    fingerprint: number[],
-                    results: {
-                        [meta: string]: any
-                    }
-                } = trackMap[fingerprintId],
-                trackResult: {
-                    [trackId: string]: any
-                };
-
-            if (!track) {
-                track = {
-                    fingerprint: fingerprint,
-                    results: {}
-                };
-                trackMap[fingerprintId] = track;
-            }
-            trackResult = track.results[trackId];
-            if (!trackResult) {
-                trackResult = {trackId: trackId};
-                track.results[trackId] = trackResult;
-            }
-            trackResult[tagName] = tagValue;
-
-            return trackMap;
-        }, {});
-
-        return trackMap;
-    }
-
-    /**
-     * Converts an instance of FingerprintIdMap into format of FingerprintResult[]
-     * @param {FingerprintIdMap} fingerprintMap
-     * @returns {FingerprintResult[]}
-     */
-    private formatFingerprintResults(fingerprintMap: FingerprintIdMap): FingerprintResult[] {
-        const fingerprintResults: FingerprintResult[] = Object.getOwnPropertyNames(fingerprintMap).map(
-            (fingerprintId: string) => {
-            const track = fingerprintMap[fingerprintId],
-                trackResults = Object.getOwnPropertyNames(track.results).map((trackId: string) => {
-                    // create shallow clone of result-object for ensuring immutability of origin
-                    const trackResult = Utils.createShallowClone(track.results[trackId]);
-
-                    return trackResult;
-                }),
-                fingerprintResult: FingerprintResult = {
-                    // create shallow clone of fingerprint-array for ensuring immutability of origin
-                    fingerprint: <number[]> Utils.createShallowClone(track.fingerprint),
-                    results: <TrackMetaData[]> trackResults
-                };
-
-            return fingerprintResult;
-        });
-
-        return fingerprintResults;
-    }
-
-    private mapTagRowsToFingerprints(rows: MetaDataRow[]): FingerprintResult[] {
-        const fingerprintIdMap: FingerprintIdMap = this.mapTracksToFingerprintIds(rows),
-            fingerprintResults: FingerprintResult[] = this.formatFingerprintResults(fingerprintIdMap);
-
-        return fingerprintResults;
     }
 
     /**
@@ -173,10 +92,19 @@ export class SongModel {
      * @returns {FingerprintResult[]} Meta-data values mapped of tracks, grouped by related fingerprints
      */
     public async queryAll(fingerprints: number[][]): Promise<FingerprintResult[]> {
-        const metaDataRows: MetaDataRow[] = await this.requestMetaData(fingerprints),
-            fingerprintResults: FingerprintResult[] = this.mapTagRowsToFingerprints(metaDataRows);
+        const metaDataRows: MetaDataRow[] = await this.requestMetaData(fingerprints);
 
-        return fingerprintResults;
+        let results = fingerprints.map((fp) => {return {fingerprint: fp, results: []} as FingerprintResult});
+        for (let row of metaDataRows) {
+            let result = results[row.query_idx].results;
+            let lastResult = result[result.length - 1];
+            if (!lastResult || lastResult.trackId != row.track_id) {
+                lastResult = {trackId: row.track_id, score: row.score} as TrackMetaData;
+                result.push(lastResult);
+            }
+            (<any>lastResult)[row.tag_type_name] = Utils.encodeTagValue(row.tag_value);
+        }
+        return results;
     }
 }
 
@@ -198,25 +126,6 @@ class Utils {
         }
 
         return shallowClone;
-    }
-
-    /**
-     * Converts a fingerprint to its sql-compliant representation
-     * @param {number[]} fingerprint Fingerprint of a track
-     * @returns {string} SQL-representation of a fingerprint  
-     */
-    public static fingerprintToSql(fingerprint: number[]): string {
-        /**
-         * Could be vulnerable to sql-injection, but as a fingerprint is of type number[],
-         * only number-values could be injected.
-         * Risk of being able to inject malicious code must be estimated.
-         * For safety reasons parameterized queries should be used!
-         */
-        
-        return [
-            "hash",
-            "'{{" + fingerprint.join(",") + "}}'"
-        ].join(" = ");
     }
 
     /**

@@ -1,5 +1,3 @@
-CREATE DATABASE kotori_test ENCODING utf8;
-\c kotori_test
 \i /tmp/postgres/postgres.sql;
 
 INSERT INTO tag_type(name)
