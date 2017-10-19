@@ -29,9 +29,10 @@ services:
       - "5432"
     volumes:
       - ./postgresql/etc/:/etc/postgresql
-      - ./postgresql/lib/:/var/lib/postgresql
+      - pg_data:/var/lib/postgresql/data
       - ./logs/postgresql/:/var/log/postgresql
       - ./../server/db/:/tmp/postgres/
       - ./../server/db/create_testdb.sql:/docker-entrypoint-initdb.d/create_testdb.sql
 volumes:
   node_modules:
+  pg_data:

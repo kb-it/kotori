@@ -5,7 +5,7 @@ import {Client, ClientConfig, QueryResult} from "pg";
 type Fingerprint = number[];
 
 type MetaDataRow = {
-    fingerprint: Fingerprint[]; // TBD: Examine why fingerprints are wrapped in array!?!
+    fingerprint: Fingerprint;
     fingerprint_id: number;
     track_id: number;
     tag_type_name: string;
@@ -58,6 +58,7 @@ export class SongModel {
      * Returns meta-data of specific tracks by its fingerprint
      * @param {number[][]} fingerprints Fingerprints of specific tracks
      * @returns {MetaDataRow[]} Table-rows consisting of track-meta-data as returned from DBS
+     * 
      */
     private async requestMetaData(fingerprints: number[][]): Promise<MetaDataRow[]> {
         let sql: string = `
@@ -80,16 +81,12 @@ export class SongModel {
                 INNER JOIN tag_type
                     ON tag.id_tag_type = tag_type.id
                 WHERE
-                    ${
-                        fingerprints.map((fp) => {
-                            return Utils.fingerprintToSql(fp);
-                        }).join(" OR ")
-                    }
+                    EXISTS (SELECT 1 FROM (VALUES 
+                        ${Array(fingerprints.length).fill(0).map((e: number, i: number)=>"($"+(i+1)+")").join(",")}
+                    ) fps WHERE fps.column1::int[] = fingerprint.hash)
             `,
-            results: QueryResult = await this.client.query(sql),
+            results: QueryResult = await this.client.query(sql, fingerprints),
             rows: MetaDataRow[] = results.rows;
-    
-        console.info("TBD: SongModel.requestMetaData :: Use parameterized query, for safe sql-injection prevention!!!");
         return rows;
     }
     
@@ -102,7 +99,7 @@ export class SongModel {
     private mapTracksToFingerprintIds(rows: MetaDataRow[]): FingerprintIdMap {
         const trackMap: FingerprintIdMap = rows.reduce((trackMap: FingerprintIdMap, row: MetaDataRow) => {
             const fingerprintId: string = String(row.fingerprint_id),
-                fingerprint: number[] = row.fingerprint[0],
+                fingerprint: number[] = row.fingerprint,
                 trackId: string =  String(row.track_id),
                 tagName: string = row.tag_type_name,
                 tagValue: string = Utils.encodeTagValue(row.tag_value);

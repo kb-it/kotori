@@ -21,10 +21,10 @@ VALUES
 
 INSERT INTO fingerprint(hash)
 VALUES
-    ('{{0,0,0,0}}'),
-    ('{{1,1,1}}'),
-    ('{{2,2}}'),
-    ('{{3}}');
+    ('{0,0,0,0}'),
+    ('{1,1,1}'),
+    ('{2,2}'),
+    ('{3}');
 
 INSERT INTO track(id_fingerprint, id_user)
 VALUES
