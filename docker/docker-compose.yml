@@ -10,9 +10,10 @@ services:
       - EXPRESS_PORT=3000
     ports:
       - "3000:3000"
-    command: npm run --prefix /var/lib/node/server/ start
+    command: bash -c "cd /var/lib/node/server/ && npm install && npm run start"
     volumes:
       - ../server/:/var/lib/node/server/
+      - node_modules:/var/lib/node/server/node_modules
     logging:
       driver: json-file
       options:
@@ -31,3 +32,6 @@ services:
       - ./postgresql/lib/:/var/lib/postgresql
       - ./logs/postgresql/:/var/log/postgresql
       - ./../server/db/:/tmp/postgres/
+      - ./../server/db/create_testdb.sql:/docker-entrypoint-initdb.d/create_testdb.sql
+volumes:
+  node_modules:
