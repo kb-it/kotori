@@ -1,5 +1,5 @@
 "use strict";
-import {createHash} from "crypto";
+import {AppConfig} from "../config/AppConfig";
 import {Client, ClientConfig, QueryResult} from "pg";
 
 type Fingerprint = number[];
@@ -13,7 +13,7 @@ type MetaDataRow = {
     // a score indicating how similar the given query fingerprint and fingerprint are
     // a number 0 <= score <= 1
     score: number,
-    track_id: number;
+    track_id: string;
     tag_type_name: string;
     tag_value: Buffer;
 }
@@ -22,29 +22,29 @@ export interface MetaData {
     fingerprint: Fingerprint;
 }
 export interface TrackMetaData {
-    trackId: number;
+    trackId: string;
     score: number;
 }
 
 export type FingerprintResult = {
     fingerprint: Fingerprint;
-    results: TrackMetaData[];
+    tracks: TrackMetaData[];
 }
 
 export class SongModel {
     private clientConfig: ClientConfig = {
-        user: process.env.POSTGRES_USER,
-        host: process.env.POSTGRES_HOST,
+        user: AppConfig.POSTGRES_USER,
+        host: AppConfig.POSTGRES_HOST,
         database: "kotori",
-        password: process.env.POSTGRES_PASSWORD,
-        port: parseInt(String(process.env.POSTGRES_PORT), 10)
+        password: AppConfig.POSTGRES_PASSWORD,
+        port: AppConfig.POSTGRES_PORT
     };
     private client: Client;
 
-    // TODO: remove testMode! thats ugly
-    public constructor(testMode?: boolean) {
-        if (testMode) {
+    public constructor() {
+        if (AppConfig.APP_TESTMODE_ENABLED) {
             this.clientConfig.database += "_test";
+            console.log("Testmode enabled!");
         }
         this.client = new Client(this.clientConfig);
         this.client.connect();
@@ -68,7 +68,11 @@ export class SongModel {
                 tag.value AS tag_value,
                 fps.column1 AS query_idx, matches.hash AS fingerprint, matches.id AS fingerprint_id, matches.score 
                 FROM (
-                    VALUES ${ Array(fingerprints.length).fill(0).map((e: number, i: number) => "(" + i + ", $" + (i+1) + ")").join(",") }
+                    VALUES ${
+                        Array(fingerprints.length).fill(0)
+                            .map((e: number, i: number) => "(" + i + ", $" + (i + 1) + ")")
+                            .join(",")
+                    }
                 ) fps JOIN LATERAL (
                     SELECT fingerprint.id,
                            fingerprint.hash,
@@ -89,45 +93,29 @@ export class SongModel {
     /**
      * Requests all meta-data values of several tracks, specified by its fingerprint
      * @param {number[][]} fingerprints Fingerprints of tracks
-     * @returns {FingerprintResult[]} Meta-data values mapped of tracks, grouped by related fingerprints
+     * @returns {FingerprintResult[]} Meta-data values of tracks, grouped by related fingerprints
      */
     public async queryAll(fingerprints: number[][]): Promise<FingerprintResult[]> {
         const metaDataRows: MetaDataRow[] = await this.requestMetaData(fingerprints);
+        let results: FingerprintResult[] = fingerprints.map((fp: Fingerprint) => {
+            return {fingerprint: fp, tracks: []} as FingerprintResult;
+        });
 
-        let results = fingerprints.map((fp) => {return {fingerprint: fp, results: []} as FingerprintResult});
-        for (let row of metaDataRows) {
-            let result = results[row.query_idx].results;
-            let lastResult = result[result.length - 1];
-            if (!lastResult || lastResult.trackId != row.track_id) {
-                lastResult = {trackId: row.track_id, score: row.score} as TrackMetaData;
-                result.push(lastResult);
+        metaDataRows.forEach(row => {
+            let tracks: TrackMetaData[] = results[row.query_idx].tracks,
+                lastTrack: TrackMetaData = tracks[tracks.length - 1];
+    
+            if (!lastTrack || lastTrack.trackId !== row.track_id) {
+                lastTrack = {trackId: row.track_id, score: row.score} as TrackMetaData;
+                tracks.push(lastTrack);
             }
-            (<any>lastResult)[row.tag_type_name] = Utils.encodeTagValue(row.tag_value);
-        }
+            (<any>lastTrack)[row.tag_type_name] = Utils.encodeTagValue(row.tag_value);
+        });
         return results;
     }
 }
 
 class Utils {
-    /**
-     * Creates a shallow clone of a passed object instance 
-     * @param {Object|Array<T>} origin Object/array instance to be cloned
-     * @returns {Object|Array<T>} Shallow clone of passed object/array  
-     */
-    public static createShallowClone<T>(origin: T): Object | Array<T> {
-        let shallowClone: T;
-
-        if (Array.isArray(origin)) {
-            shallowClone = Object.assign([], origin);
-        } else if (typeof origin === "object") {
-            shallowClone = Object.assign({}, origin);
-        } else {
-            throw TypeError("Only objects can be cloned, but passed value is neither an Array nor an Object!");
-        }
-
-        return shallowClone;
-    }
-
     /**
      * Converts value of a tag, represented by a Buffer, to an UTF8 string
      * @param {Buffer} tagValueBuffer Value of a tag as Buffer
