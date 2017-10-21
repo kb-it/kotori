@@ -6,6 +6,7 @@ import {SongController} from "./controllers/SongController";
 
 // creates express app, registers all controller routes and returns you express app instance
 const app = createExpressServer({
+    defaultErrorHandler: false,
     controllers: [UserController, SongController] // we specify controllers we want to use
 });
 
