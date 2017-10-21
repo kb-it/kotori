@@ -61,3 +61,5 @@ typings/
 
 # macos specific temp files
 .DS_STORE
+
+/docker/production.env

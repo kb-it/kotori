@@ -1,5 +1,3 @@
-\i /tmp/postgres/postgres.sql;
-
 INSERT INTO tag_type(name)
 VALUES
     ('track'),

@@ -4,13 +4,13 @@ services:
     image: node:8.6.0
     restart: on-failure
     environment:
-      - POSTGRES_PASSWORD=E.pL0_UJoia,:IB4
       - POSTGRES_USER=user
       - POSTGRES_HOST=postgres
       - EXPRESS_PORT=3000
+    env_file: ${NODE_ENV:-development}.env
     ports:
       - "3000:3000"
-    command: bash -c "cd /var/lib/node/server/ && npm install && npm run start"
+    command: bash -c "cd /var/lib/node/server/ && npm install && NODE_ENV=${NODE_ENV:-development} npm run start"
     volumes:
       - ../server/:/var/lib/node/server/
       - node_modules:/var/lib/node/server/node_modules
@@ -23,17 +23,17 @@ services:
     build: ../echoprint/postgres_echoprint/
     restart: always
     environment:
-      - POSTGRES_PASSWORD=E.pL0_UJoia,:IB4
       - POSTGRES_USER=user
-      - POSTGRES_DB=kotori_test
+      - PGDATA=${NODE_ENV:-development}
+    env_file: ${NODE_ENV:-development}.env
     expose:
       - "5432"
     volumes:
       - ./postgresql/etc/:/etc/postgresql
       - pg_data:/var/lib/postgresql/data
       - ./logs/postgresql/:/var/log/postgresql
-      - ./../server/db/:/tmp/postgres/
-      - ./../server/db/create_testdb.sql:/docker-entrypoint-initdb.d/zcreate_testdb.sql
+      - ./../server/db/postgres.sql:/docker-entrypoint-initdb.d/ycreate-postgres.sql
+      - ./../server/db/create_testdb.sql:/docker${NODE_ENV--}entrypoint-initdb.d/zcreate_testdb.sql
 volumes:
   node_modules:
   pg_data:
