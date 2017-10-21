@@ -50,7 +50,7 @@ export class AppConfig{
         return configMap;
     })();
 
-    public static readonly APP_TESTMODE_ENABLED: boolean = process.env["NODE_ENV"] == "production";
+    public static readonly APP_TESTMODE_ENABLED: boolean = process.env["NODE_ENV"] != "production";
     public static readonly EXPRESS_PORT: number = AppConfig.configMap.EXPRESS_PORT;
     public static readonly POSTGRES_PORT: number = AppConfig.configMap.POSTGRES_PORT;
     public static readonly POSTGRES_HOST: string | undefined = AppConfig.configMap.POSTGRES_HOST;
