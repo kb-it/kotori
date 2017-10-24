@@ -7,6 +7,7 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_HOST=postgres
       - EXPRESS_PORT=3000
+      - POSTGRES_PORT=5432
     env_file: ${NODE_ENV:-development}.env
     ports:
       - "3000:3000"
@@ -14,6 +15,8 @@ services:
     volumes:
       - ../server/:/var/lib/node/server/
       - node_modules:/var/lib/node/server/node_modules
+    networks:
+      - kotori
     logging:
       driver: json-file
       options:
@@ -34,6 +37,11 @@ services:
       - ./logs/postgresql/:/var/log/postgresql
       - ./../server/db/postgres.sql:/docker-entrypoint-initdb.d/ycreate-postgres.sql
       - ./../server/db/create_testdb.sql:/docker${NODE_ENV--}entrypoint-initdb.d/zcreate_testdb.sql
+    networks:
+      - kotori
 volumes:
   node_modules:
   pg_data:
+networks:
+  kotori:
+    driver: bridge
