@@ -16,6 +16,7 @@ RUN wget https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-portab
 RUN mkdir /include /deps && git clone https://github.com/madler/zlib.git /deps/zlib && ln -s /deps/zlib /include/zlib
 
 ADD ./echoprint-codegen /echoprint-codegen
+ADD pre.js /echoprint-codegen/src/pre.js
 
 # Latest known ZLIB version is 1.2.11, if something should break unexpectedly
 RUN cd /echoprint-codegen/src && ln -s /usr/include/boost /include/boost
@@ -25,4 +26,4 @@ RUN source ./emsdk-portable/emsdk_env.sh \
     && cd /echoprint-codegen/src \
     && (cd /deps/zlib && CFLAGS="-O3" emconfigure ./configure --static && emmake make) \
     && make \
-    && emcc -O3 -s WASM=1 -s MODULARIZE=1 -s ALLOW_MEMORY_GROWTH=1 -s EXPORT_NAME="'EchoPrint'" -s EXPORTED_FUNCTIONS="['_main']" echoprint-codegen.bc /deps/zlib/libz.a -o codegen.js
+    && emcc -O3 -s WASM=1 -s MODULARIZE=1 -s ALLOW_MEMORY_GROWTH=1 -s EXPORT_NAME="'EchoPrint'" -s EXPORTED_FUNCTIONS="['_main']" --pre-js pre.js echoprint-codegen.bc /deps/zlib/libz.a -o codegen.js
