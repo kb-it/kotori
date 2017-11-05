@@ -26,6 +26,9 @@
     "files": [
       "dist/electron/**/*"
     ],
+    "extraFiles": [
+      {"from": "third-party/${os}/${arch}/", "to": "."}
+    ],
     "dmg": {
       "contents": [
         {
@@ -45,6 +48,7 @@
       "icon": "build/icons/icon.icns"
     },
     "win": {
+      "target": ["portable"],
       "icon": "build/icons/icon.ico"
     },
     "linux": {

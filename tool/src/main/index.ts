@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, dialog, BrowserWindow } from 'electron';
 
 // Install `electron-debug` with `devtron`
 require('electron-debug')({ showDevTools: true })
@@ -8,9 +8,9 @@ export {codegen};
 
 let mainWindow: Electron.BrowserWindow | null = null
 
-const winURL: string = process.env.NODE_ENV === 'development'
+var winURL: string = process.env.NODE_ENV === 'development'
   ? `http://localhost:9080`
-  : `file://${__dirname}/index.html`
+  : `file://${__dirname}/index.html`;
 
 function createWindow() {
   /**
@@ -24,6 +24,12 @@ function createWindow() {
     titleBarStyle: 'hidden',
   });
   mainWindow.setMenu(null);
+
+  if (!codegen.init()) {
+    winURL = "about:blank";
+    dialog.showErrorBox("Error", "Could not find ffmpeg!");
+    process.exit(-1);
+  }
 
   mainWindow.loadURL(winURL)
 
@@ -47,23 +53,3 @@ app.on('activate', () => {
     createWindow()
   }
 })
-
-/**
- * Auto Updater
- *
- * Uncomment the following code below and install `electron-updater` to
- * support auto updating. Code Signing with a valid certificate is required.
- * https://simulatedgreg.gitbooks.io/electron-vue/content/en/using-electron-builder.html#auto-updating
- */
-
-/*
-import { autoUpdater } from 'electron-updater'
-
-autoUpdater.on('update-downloaded', () => {
-  autoUpdater.quitAndInstall()
-})
-
-app.on('ready', () => {
-  if (process.env.NODE_ENV === 'production') autoUpdater.checkForUpdates()
-})
- */

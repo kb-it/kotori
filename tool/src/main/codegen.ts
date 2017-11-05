@@ -5,8 +5,29 @@
 declare var WebAssembly: any;
 declare var __static: any;
 
-var zlib = require("zlib");
+var fs = require("fs");
+var util = require("util");
 var path = require("path");
+var zlib = require("zlib");
+
+// makes sure ffmpeg exists and is therefore callable
+export function init() {
+    var platform = process.platform === "win32" ? "win" : process.platform;
+    var devPath = util.format("third-party/%s/%s", platform, process.arch);
+    var locations = [""];
+
+    // make sure that in development builds (non-bundled) we'll be able to find ffmpeg
+    if (process.env.NODE_ENV === 'development') {
+        var fragments = process.env.PATH!.split(path.delimiter);
+        var loc: any = path.join(process.cwd(), devPath);
+        locations.push(loc);
+        fragments.push(loc);
+        process.env.PATH = fragments.join(path.delimiter);
+    }
+
+    var ext = platform === "win" ? ".exe" : "";
+    return locations.some((loc) => fs.existsSync(path.join(loc, "ffmpeg" + ext)));
+}
 
 export function getFingerprint(filePath: string) {
     // node workaround since emscripten will try to use fetch else

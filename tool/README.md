@@ -5,6 +5,9 @@
 #### Build Setup
 
 ``` bash
+# install ffmpeg (we need to bundle ffmpeg.exe with the built electron app so codegen works)
+./dl_ffmpeg.sh
+
 # install dependencies
 npm install
 
