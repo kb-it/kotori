@@ -1,10 +1,8 @@
 import { app, dialog, BrowserWindow } from 'electron';
+import * as codegen from './codegen';
 
 // Install `electron-debug` with `devtron`
 require('electron-debug')({ showDevTools: true })
-
-import * as codegen from './codegen';
-export {codegen};
 
 let mainWindow: Electron.BrowserWindow | null = null
 
@@ -13,10 +11,6 @@ var winURL: string = process.env.NODE_ENV === 'development'
   : `file://${__dirname}/index.html`;
 
 function createWindow() {
-  /**
-   * Initial window options
-   */
-  // if (0 % 1 == 0) return;
   mainWindow = new BrowserWindow({
     height: 563,
     useContentSize: true,
@@ -25,7 +19,8 @@ function createWindow() {
   });
   mainWindow.setMenu(null);
 
-  if (!codegen.init()) {
+  // check if ffmpeg exists on startup so the user knows if everything works
+  if (!codegen.init(true)) {
     winURL = "about:blank";
     dialog.showErrorBox("Error", "Could not find ffmpeg!");
     process.exit(-1);

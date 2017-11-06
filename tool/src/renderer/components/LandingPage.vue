@@ -9,11 +9,14 @@
         <p class="panel-heading">
           Zu synchronisierende Dateien
         </p>
-        <a class="panel-block is-active" v-for="item of files">
+        <a class="panel-block" v-for="item of files" v-bind:class="{'is-active': item.active, 'is-danger': item.error != null}" @click="item.active=!item.active">
           <span class="panel-icon">
-            <i class="fa fa-music"></i>
+            <i v-if="item.error!=null" class="fa fa-exclamation-triangle"></i>
+            <i v-else-if="item.fp!=null" class="fa fa-music"></i>
+            <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
           </span>
-          {{ item }}
+          <span class="is-loading"></span>
+          {{ item.text }}
         </a>
       </nav>
     </main>
@@ -24,11 +27,9 @@
   import Vue from 'vue'
   import Component from 'vue-class-component'
 
-  const {remote} = require("electron");
-  const dialog = remote.dialog;
-  const codegen = remote.require("./main").codegen;
+  import {remote, ipcRenderer} from 'electron';
 
-  console.log(codegen.getFingerprint("test"));
+  const dialog = remote.dialog;
 
   document.ondragover = document.ondrop = (ev) => ev.preventDefault();
 
@@ -47,7 +48,24 @@
     doAddFile(path: string) {
       if (this.files.indexOf(path) > -1) return;
       // TODO: watch for file changes
-      this.files.push(path);
+      
+      var file = {text: path, active: false, error: undefined, fp: undefined};
+      this.files.push(file);
+
+      // get a fingerprint from codegen in the background, 
+      // this goes renderer --> main --> fork and back through 2 layers of IPC
+      let cb;
+      cb = (event, fileName, msg) => {
+        if (fileName != path) return;
+        ipcRenderer.removeListener("get-fingerprint-result", cb);
+        // TODO: handle error
+        file.error = msg.error;
+        if (!msg.error && msg.codes) {
+          file.fp = msg.codes;
+        }
+      };
+      ipcRenderer.on("get-fingerprint-result", cb);
+      ipcRenderer.send("get-fingerprint", path);
     }
 
     addFile() {
@@ -68,4 +86,7 @@
 </script>
 
 <style>
+  .panel-block .is-danger {
+    background-color: #FFCCCC;
+  }
 </style>

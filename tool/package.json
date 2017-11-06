@@ -27,7 +27,10 @@
       "dist/electron/**/*"
     ],
     "extraFiles": [
-      {"from": "third-party/${os}/${arch}/", "to": "."}
+      {
+        "from": "third-party/${os}/${arch}/",
+        "to": "."
+      }
     ],
     "dmg": {
       "contents": [
@@ -48,7 +51,9 @@
       "icon": "build/icons/icon.icns"
     },
     "win": {
-      "target": ["portable"],
+      "target": [
+        "portable"
+      ],
       "icon": "build/icons/icon.ico"
     },
     "linux": {
@@ -96,5 +101,10 @@
     "vue-loader": "^13.3.0",
     "webpack": "^3.8.1",
     "webpack-merge": "^4.1.1"
+  },
+  "electronWebpack": {
+    "main": {
+        "extraEntries": ["@/index-codegen.ts"]
+      }
   }
 }
