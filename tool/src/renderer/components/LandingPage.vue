@@ -47,6 +47,7 @@
 <script lang="ts">
   import Vue from 'vue'
   import Component from 'vue-class-component'
+  import {File} from '../store/modules/files'
 
   import {remote} from 'electron';
 
@@ -74,10 +75,10 @@
 
     // keep all unselected items (=> throw away selected ones)
     deleteSelectedItems() {
-      this.$store.dispatch("retainFiles", (file) => !file.active);
+      this.$store.dispatch("retainFiles", (file:File) => !file.active);
     }
 
-    selectFile(path) {
+    selectFile(path:string) {
       let changes = {active: !this.files[path].active};
       this.$store.commit("UPDATE_FILE", {path, changes});
     }

@@ -7,7 +7,7 @@ interface FileState {
   user: string | null,
 }
 
-interface File {
+export interface File {
   active: boolean,
   error?: string,
   fp?: number[]
