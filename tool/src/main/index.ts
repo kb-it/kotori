@@ -16,6 +16,7 @@ function createWindow() {
     useContentSize: true,
     width: 1000,
     titleBarStyle: 'hidden',
+    webPreferences: {webSecurity: process.env.NODE_ENV === 'production'},
   });
   mainWindow.setMenu(null);
 

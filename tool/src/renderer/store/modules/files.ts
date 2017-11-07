@@ -3,7 +3,9 @@ import * as Vuex from 'vuex'
 import {ipcRenderer} from 'electron';
 
 interface FileState {
-  files: {[path:string]: File}
+  files: {[path:string]: File},
+  user: string | null,
+  token: string | null,
 }
 
 interface File {
@@ -13,7 +15,9 @@ interface File {
 }
 
 const state: FileState = {
-  files: {}
+  files: {},
+  user: null,
+  token: null,
 }
 
 const mutations = {

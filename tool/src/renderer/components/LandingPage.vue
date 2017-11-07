@@ -1,30 +1,46 @@
 <template>
-  <div class="container">
-    <main>
+  <main>
+    <nav class="panel">
+      <section class="hero is-light">
+        <div class="hero-body has-text-centered">
+          <div class="container">
+            <h1 class="title vcenter" v-if="currentUser!=null">
+              Logged in as
+              <router-link to="/login" tag="button" class="button is-link is-large vcenter">
+                <i class="fa fa-user"></i><strong>{{ currentUser }}</strong>
+              </router-link>
+            </h1>
+            <h1 v-else class="title vcenter">
+              <router-link to="/login" tag="button" class="button is-link is-large is-fullwidth vcenter">
+                Sign In
+              </router-link>
+            </h1>
+          </div>
+        </div>
+      </section>
       <button @click="addFile()" class="button is-primary is-fullwidth">
         Datei hinzufügen (Click oder Drag&Drop)
       </button>
-      <router-link to="/sync" tag="button">Synchronize Meta Data</router-link>
-
-      <nav class="panel">
-        <p class="panel-heading" style="padding-bottom: 16px;">
-          <span style="vertical-align: middle;">Zu synchronisierende Dateien</span>
-          <button class="button is-outlined is-danger is-pulled-right" @click="deleteSelectedItems()">
-            <i class="fa fa-trash-o"></i>
-          </button>
-        </p>
-        <a class="panel-block" v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)">
-          <span class="panel-icon">
-            <i v-if="file.error!=null" class="fa fa-exclamation-triangle"></i>
-            <i v-else-if="file.fp!=null" class="fa fa-music"></i>
-            <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
-          </span>
-          <span class="is-loading"></span>
-          {{ path }}
-        </a>
-      </nav>
-    </main>
-  </div>
+      <p class="panel-heading" style="padding-bottom: 16px;">
+        <span class="vcenter">Zu synchronisierende Dateien</span>
+        <router-link to="/sync" tag="button" class="is-pulled-right button is-primary">Synchronize Meta Data</router-link>
+      </p>
+      <a class="panel-block" v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)">
+        <span class="panel-icon">
+          <i v-if="file.error!=null" class="fa fa-exclamation-triangle"></i>
+          <i v-else-if="file.fp!=null" class="fa fa-music"></i>
+          <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
+        </span>
+        <span class="is-loading"></span>
+        {{ path }}
+      </a>
+      <div class="panel-block" v-if="Object.keys(files).length>0">
+        <button class="button is-danger is-fullwidth" @click="deleteSelectedItems()">
+          Delete
+        </button>
+      </div>
+    </nav>
+  </main>
 </template>
 
 <script lang="ts">
@@ -41,6 +57,10 @@
   export default class LandingPage extends Vue {
     get files() {
       return this.$store.state.files.files;
+    }
+
+    get currentUser() {
+        return this.$store.state.files.user;
     }
 
     mounted() {
@@ -85,6 +105,9 @@
 </script>
 
 <style>
+  .vcenter {
+    vertical-align: middle;
+  }
   .panel-block .is-danger {
     background-color: #FFCCCC;
   }
