@@ -48,7 +48,7 @@ function registerEventHandler() {
     });
 }
 
-type FpCallback = (codes: number[] | null, err: any) => void;
+export type FpCallback = (codes: number[] | null, err: any) => void;
 
 export function getFingerprint(filePath: string, cb: FpCallback | null) {
     // node workaround since emscripten will try to use fetch else

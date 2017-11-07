@@ -1,22 +1,26 @@
 <template>
   <div class="container">
     <main>
-      <button readonly @click="addFile()" class="button is-primary is-fullwidth">
+      <button @click="addFile()" class="button is-primary is-fullwidth">
         Datei hinzufügen (Click oder Drag&Drop)
       </button>
+      <router-link to="/sync" tag="button">Synchronize Meta Data</router-link>
 
       <nav class="panel">
-        <p class="panel-heading">
-          Zu synchronisierende Dateien
+        <p class="panel-heading" style="padding-bottom: 16px;">
+          <span style="vertical-align: middle;">Zu synchronisierende Dateien</span>
+          <button class="button is-outlined is-danger is-pulled-right" @click="deleteSelectedItems()">
+            <i class="fa fa-trash-o"></i>
+          </button>
         </p>
-        <a class="panel-block" v-for="item of files" v-bind:class="{'is-active': item.active, 'is-danger': item.error != null}" @click="item.active=!item.active">
+        <a class="panel-block" v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)">
           <span class="panel-icon">
-            <i v-if="item.error!=null" class="fa fa-exclamation-triangle"></i>
-            <i v-else-if="item.fp!=null" class="fa fa-music"></i>
+            <i v-if="file.error!=null" class="fa fa-exclamation-triangle"></i>
+            <i v-else-if="file.fp!=null" class="fa fa-music"></i>
             <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
           </span>
           <span class="is-loading"></span>
-          {{ item.text }}
+          {{ path }}
         </a>
       </nav>
     </main>
@@ -27,7 +31,7 @@
   import Vue from 'vue'
   import Component from 'vue-class-component'
 
-  import {remote, ipcRenderer} from 'electron';
+  import {remote} from 'electron';
 
   const dialog = remote.dialog;
 
@@ -35,7 +39,9 @@
 
   @Component
   export default class LandingPage extends Vue {
-    files: string[] = [];
+    get files() {
+      return this.$store.state.files.files;
+    }
 
     mounted() {
       document.addEventListener("drop", this.onDrop);
@@ -45,27 +51,20 @@
       document.removeEventListener("drop", this.onDrop);
     }
 
-    doAddFile(path: string) {
-      if (this.files.indexOf(path) > -1) return;
-      // TODO: watch for file changes
-      
-      var file = {text: path, active: false, error: undefined, fp: undefined};
-      this.files.push(file);
+    // keep all unselected items (=> throw away selected ones)
+    deleteSelectedItems() {
+      this.$store.dispatch("retainFiles", (file) => !file.active);
+    }
 
-      // get a fingerprint from codegen in the background, 
-      // this goes renderer --> main --> fork and back through 2 layers of IPC
-      let cb;
-      cb = (event, fileName, msg) => {
-        if (fileName != path) return;
-        ipcRenderer.removeListener("get-fingerprint-result", cb);
-        // TODO: handle error
-        file.error = msg.error;
-        if (!msg.error && msg.codes) {
-          file.fp = msg.codes;
-        }
-      };
-      ipcRenderer.on("get-fingerprint-result", cb);
-      ipcRenderer.send("get-fingerprint", path);
+    selectFile(path) {
+      let changes = {active: !this.files[path].active};
+      this.$store.commit("UPDATE_FILE", {path, changes});
+    }
+
+    doAddFile(path: string) {
+      if (this.files[path]) return;
+      // TODO: watch for file changes
+      this.$store.dispatch("addFile", path);
     }
 
     addFile() {
