@@ -26,6 +26,15 @@ CREATE EXTENSION "uuid-ossp"
 COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
 -- ddl-end --
 
+-- object: "uuid-ossp" | type: EXTENSION --
+-- DROP EXTENSION IF EXISTS "uuid-ossp" CASCADE;
+CREATE EXTENSION "pgcrypto"
+      WITH SCHEMA public
+      VERSION '1.3';
+-- ddl-end --
+COMMENT ON EXTENSION "pgcrypto" IS 'provides cryptographic functions for PostgreSQL';
+-- ddl-end --
+
 -- object: public."user" | type: TABLE --
 -- DROP TABLE IF EXISTS public."user" CASCADE;
 CREATE TABLE public."user"(

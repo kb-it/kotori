@@ -15,8 +15,6 @@ services:
     volumes:
       - ../server/:/var/lib/node/server/
       - node_modules:/var/lib/node/server/node_modules
-    networks:
-      - kotori
     logging:
       driver: json-file
       options:
@@ -37,13 +35,6 @@ services:
       - ./logs/postgresql/:/var/log/postgresql
       - ./../server/db/postgres.sql:/docker-entrypoint-initdb.d/ycreate-postgres.sql
       - ./../server/db/create_testdb.sql:/docker${NODE_ENV--}entrypoint-initdb.d/zcreate_testdb.sql
-    networks:
-      - kotori
 volumes:
   node_modules:
   pg_data:
-networks:
-  kotori:
-    driver: bridge
-    driver_opts:
-      com.docker.network.bridge.name: kotori

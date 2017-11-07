@@ -9,11 +9,11 @@ VALUES
 
 INSERT INTO "user"(mail, password, is_deleted)
 VALUES
-    ('bestof1950@domain.tld', 'password', 0::BOOLEAN),
-    ('bestof1960@domain.tld', '12345', 0::BOOLEAN),
-    ('bestof1970@domain.tld', 'p4ss', 0::BOOLEAN),
-    ('prankster@domain.tld', 'bugmenot', 1::BOOLEAN),
-    ('wisenheimer@domain.tld', '1337', 0::BOOLEAN);
+    ('bestof1950@domain.tld', crypt('password', gen_salt('bf', 8)), 0::BOOLEAN),
+    ('bestof1960@domain.tld', crypt('12345', gen_salt('bf', 8)), 0::BOOLEAN),
+    ('bestof1970@domain.tld', crypt('p4ss', gen_salt('bf', 8)), 0::BOOLEAN),
+    ('prankster@domain.tld', crypt('bugmenot', gen_salt('bf', 8)), 1::BOOLEAN),
+    ('wisenheimer@domain.tld', crypt('1337', gen_salt('bf', 8)), 0::BOOLEAN);
 
 INSERT INTO fingerprint(hash)
 VALUES

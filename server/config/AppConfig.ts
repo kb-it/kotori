@@ -1,28 +1,34 @@
 "use strict";
+import {Utils} from "../utils/Utils";
 
 type ConfigMap = {
     APP_TESTMODE_ENABLED: boolean;
     EXPRESS_PORT: number;
+    JWT_SECRET: string | undefined;
     POSTGRES_HOST: string | undefined;
     POSTGRES_PORT: number;
     POSTGRES_USER: string | undefined;
     POSTGRES_PASSWORD: string | undefined;
 };
 
-export class AppConfig{
+export class AppConfig {
     private static readonly configMap: ConfigMap = (() => {
-        const configKeyMap = {
+        const decimalNumBase = 10,
+            configKeyMap = {
                 APP_TESTMODE_ENABLED: {
-                    format: (value: any) => value === "true"
+                    format: (value: any) => process.env.NODE_ENV !== "production" || value === "true"
                 },
                 EXPRESS_PORT: {
-                    format: (value: any) => parseInt(String(value), 10)
+                    format: (value: any) => parseInt(String(value), decimalNumBase)
+                },
+                JWT_SECRET: {
+                    format: (value: any) => String(value)
                 },
                 POSTGRES_HOST: {
                     format: (value: any) => String(value)
                 },
                 POSTGRES_PORT: {
-                    format: (value: any) => parseInt(String(value), 10)
+                    format: (value: any) => parseInt(String(value), decimalNumBase)
                 },
                 POSTGRES_USER: {
                     format: (value: any) => String(value)
@@ -46,12 +52,12 @@ export class AppConfig{
                 return configMap;
             }, <ConfigMap>{});
 
-        console.log("AppConfig:", configMap);
         return configMap;
     })();
 
-    public static readonly APP_TESTMODE_ENABLED: boolean = process.env["NODE_ENV"] != "production";
+    public static readonly APP_TESTMODE_ENABLED: boolean = AppConfig.configMap.APP_TESTMODE_ENABLED;
     public static readonly EXPRESS_PORT: number = AppConfig.configMap.EXPRESS_PORT;
+    public static readonly JWT_SECRET: string | undefined = AppConfig.configMap.JWT_SECRET;
     public static readonly POSTGRES_PORT: number = AppConfig.configMap.POSTGRES_PORT;
     public static readonly POSTGRES_HOST: string | undefined = AppConfig.configMap.POSTGRES_HOST;
     public static readonly POSTGRES_USER: string | undefined = AppConfig.configMap.POSTGRES_USER;
