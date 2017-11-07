@@ -15,7 +15,7 @@
                             <form @submit.prevent="doLogin()">
                                 <div class="field">
                                     <div class="control has-icons-left has-icons-right">
-                                        <input v-model="user" class="input" type="email" placeholder="Email" required 
+                                        <input v-model="user" class="input" type="email" placeholder="Email" required
                                             @change="status.email=!$event.target.matches(':invalid')">
                                         <span class="icon"><i class="fa fa-envelope"></i></span>
                                         <span class="icon is-small is-right">
@@ -55,7 +55,7 @@
     import Vue from 'vue'
     import Component from 'vue-class-component'
     import {http} from '../config'
- 
+
     @Component
     export default class LoginPage extends Vue {
         status = {email: false, password: false};
@@ -71,9 +71,14 @@
         }
 
         doLogin() {
-            http.post("v1/user/login", {mail: this.user, password: this.password})
+            let user = "" + this.user;
+            http.post("v1/user/login", {mail: user, password: this.password})
                 .then(response => {
                     console.log("login resonse ", response);
+                    if (response.status == 200) {
+                        this.$store.commit('SET_USER', user);
+                        this.back();
+                    }
                 })
                 .catch(err => {
                     remote.dialog.showErrorBox("Login failed", err.message);

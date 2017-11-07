@@ -7,7 +7,8 @@
             <h1 class="title vcenter" v-if="currentUser!=null">
               Logged in as
               <router-link to="/login" tag="button" class="button is-link is-large vcenter">
-                <i class="fa fa-user"></i><strong>{{ currentUser }}</strong>
+                <span class="icon"><i class="fa fa-user"></i></span>
+                <strong>{{ currentUser }}</strong>
               </router-link>
             </h1>
             <h1 v-else class="title vcenter">
@@ -21,9 +22,9 @@
       <button @click="addFile()" class="button is-primary is-fullwidth">
         Datei hinzufügen (Click oder Drag&Drop)
       </button>
-      <p class="panel-heading" style="padding-bottom: 16px;">
+      <p class="panel-heading" style="padding-bottom: 16px; display: flex; justify-content: space-between; align-items: center">
         <span class="vcenter">Zu synchronisierende Dateien</span>
-        <router-link to="/sync" tag="button" class="is-pulled-right button is-primary">Synchronize Meta Data</router-link>
+        <router-link to="/sync" tag="button" class="button is-primary vcenter">Synchronize Meta Data</router-link>
       </p>
       <a class="panel-block" v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)">
         <span class="panel-icon">
@@ -88,7 +89,7 @@
     }
 
     addFile() {
-      let paths = dialog.showOpenDialog({ 
+      let paths = dialog.showOpenDialog({
         properties: ['openFile']
       });
       if (paths != null) {

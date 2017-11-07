@@ -5,7 +5,6 @@ import {ipcRenderer} from 'electron';
 interface FileState {
   files: {[path:string]: File},
   user: string | null,
-  token: string | null,
 }
 
 interface File {
@@ -17,7 +16,6 @@ interface File {
 const state: FileState = {
   files: {},
   user: null,
-  token: null,
 }
 
 const mutations = {
@@ -30,15 +28,18 @@ const mutations = {
   },
   SET_FILES(state: FileState, files: FileState) {
     Vue.set(state, "files", files);
+  },
+  SET_USER(state: FileState, user: string) {
+      state.user = user;
   }
 }
 
 const actions = {
   addFile({ commit }: Vuex.Store<FileState>, path:string) {
     var file = {active: false, error: undefined, fp: undefined};
-    // get a fingerprint from codegen in the background, 
+    // get a fingerprint from codegen in the background,
     // this goes renderer --> main --> fork and back through 2 layers of IPC
-    let cb: any; 
+    let cb: any;
     cb = (event: any, fileName: string, msg: any) => {
       if (fileName != path) return;
       ipcRenderer.removeListener("get-fingerprint-result", cb);

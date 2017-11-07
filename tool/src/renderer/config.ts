@@ -1,5 +1,16 @@
-import axios from "axios"
+import axios, {AxiosResponse} from "axios"
 
 const API_URL = "https://kotorimusic.ga/api";
 
-export const http = axios.create({baseURL: API_URL});
+export const http = axios.create({
+    baseURL: API_URL,
+});
+
+// This ensures that we always use the most recent authorization info retrieved by the server
+// without having to care about it, automagically
+http.interceptors.response.use((config: AxiosResponse): AxiosResponse => {
+    if (config.status == 200 && config.headers["authorization"]) {
+        http.defaults.headers["authorization"] = config.headers["authorization"];
+    }
+    return config;
+});
