@@ -70,11 +70,11 @@
         pendingSync = false;
 
         get files() {
-            return this.$store.state.files.files;
+            return this.$store.state.app.files;
         }
 
         get currentUser() {
-                return this.$store.state.files.user;
+                return this.$store.state.app.user;
         }
 
         mounted() {
@@ -137,7 +137,7 @@
                         handleHttpError("Request failed", err);
                     })
             };
-            let checkReady = (state) => !Object.values(state.files.files).some((file) => file.fp == null);
+            let checkReady = (state) => !Object.values(state.app.files).some((file) => file.fp == null);
             unwatch = this.$store.watch(
                 checkReady,
                 (ready) => {if (ready) startSync()},

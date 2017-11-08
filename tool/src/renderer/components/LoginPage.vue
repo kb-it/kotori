@@ -65,7 +65,7 @@
         password = "";
 
         get prevUser() {
-            return this.$store.state.files.user;
+            return this.$store.state.app.user;
         }
 
         mounted() {

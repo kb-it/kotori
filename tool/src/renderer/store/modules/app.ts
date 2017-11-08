@@ -2,7 +2,7 @@ import Vue from 'vue'
 import * as Vuex from 'vuex'
 import {ipcRenderer} from 'electron';
 
-interface FileState {
+interface AppState {
     files: {[path:string]: File},
     user: string | null,
 }
@@ -24,29 +24,29 @@ export interface File {
     tags?: FileTags,
 }
 
-const state: FileState = {
+const state: AppState = {
     files: {},
     user: null,
 }
 
 const mutations = {
-    ADD_FILE(state: FileState, {path, file}: {path:string, file:File}) {
+    ADD_FILE(state: AppState, {path, file}: {path:string, file:File}) {
         Vue.set(state.files, path, file);
     },
-    UPDATE_FILE(state: FileState, {path, changes}: {path: string, changes:File}) {
+    UPDATE_FILE(state: AppState, {path, changes}: {path: string, changes:File}) {
         if (!state.files[path]) return;
         Object.assign(state.files[path], changes);
     },
-    SET_FILES(state: FileState, files: FileState) {
+    SET_FILES(state: AppState, files: AppState) {
         Vue.set(state, "files", files);
     },
-    SET_USER(state: FileState, user: string) {
+    SET_USER(state: AppState, user: string) {
             state.user = user;
     }
 }
 
 const actions = {
-    addFile({ commit }: Vuex.Store<FileState>, path:string) {
+    addFile({ commit }: Vuex.Store<AppState>, path:string) {
         var file = {active: false, error: undefined, fp: undefined};
         // get a fingerprint & meta info from codegen in the background,
         // this goes renderer --> main --> fork and back through 2 layers of IPC
@@ -66,7 +66,7 @@ const actions = {
         ipcRenderer.send("get-track", path);
         commit('ADD_FILE', {path, file});
     },
-    retainFiles({ commit, state }: Vuex.Store<FileState>, closure: (file:File) => boolean) {
+    retainFiles({ commit, state }: Vuex.Store<AppState>, closure: (file:File) => boolean) {
         var newState = Object.assign({}, state.files);
         for (let file of Object.keys(newState).filter((key) => !closure(newState[key]))) {
             delete newState[file];
