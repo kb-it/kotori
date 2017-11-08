@@ -9,7 +9,7 @@ export const http = axios.create({
 // This ensures that we always use the most recent authorization info retrieved by the server
 // without having to care about it, automagically
 http.interceptors.response.use((config: AxiosResponse): AxiosResponse => {
-    if (config.status == 200 && config.headers["authorization"]) {
+    if (config.headers["authorization"]) {
         http.defaults.headers["authorization"] = config.headers["authorization"];
     }
     return config;

@@ -35,7 +35,7 @@
                                 </div>
                                 <div class="field">
                                     <div class="control">
-                                        <button class="button is-primary is-medium is-fullwidth" type="submit">
+                                        <button v-bind:class="{'is-loading': pending}" class="button is-primary is-medium is-fullwidth" type="submit">
                                             <span class="icon"><i class="fa fa-user"></i></span>
                                             <span>Login</span>
                                         </button>
@@ -59,6 +59,7 @@
     @Component
     export default class LoginPage extends Vue {
         status = {email: false, password: false};
+        pending = false;
         user = "";
         password = "";
 
@@ -72,8 +73,10 @@
 
         doLogin() {
             let user = "" + this.user;
+            this.pending = true;
             http.post("v1/user/login", {mail: user, password: this.password})
                 .then(response => {
+                    this.pending = false;
                     console.log("login resonse ", response);
                     if (response.status == 200) {
                         this.$store.commit('SET_USER', user);
@@ -81,7 +84,8 @@
                     }
                 })
                 .catch(err => {
-                    remote.dialog.showErrorBox("Login failed", err.message);
+                    this.pending = false;
+                    handleHttpError("Login failed", err)
                 })
         }
 
