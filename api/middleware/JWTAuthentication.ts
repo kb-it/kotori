@@ -25,7 +25,7 @@ export class JWTAuthentication implements ExpressMiddlewareInterface {
                 next();
             } catch (e) {
                 console.error(e);
-                return response.json({
+                return response.status(HTTP_STATUS_CODE.UNAUTHORIZED).json({
                     success: false,
                     message: e.message
                 });
@@ -33,7 +33,7 @@ export class JWTAuthentication implements ExpressMiddlewareInterface {
         } else {
             return response.status(HTTP_STATUS_CODE.FORBIDDEN).send({
                 success: false,
-                message: "No token provided"
+                message: "Request failed. Not logged in."
             });
         }
     }

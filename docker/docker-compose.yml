@@ -1,7 +1,9 @@
 version: '3'
 services:
   node:
-    image: node:8.6.0
+    build:
+        context: .
+        dockerfile: Dockerfile_node
     restart: on-failure
     environment:
       - POSTGRES_USER=user
@@ -11,10 +13,10 @@ services:
     env_file: ${NODE_ENV:-development}.env
     ports:
       - "3000:3000"
-    command: bash -c "cd /var/lib/node/server/ && npm install && NODE_ENV=${NODE_ENV:-development} npm run start"
+    command: bash -c "cd /var/lib/node/api/ && npm install && NODE_ENV=${NODE_ENV:-development} npm run start"
     volumes:
-      - ../server/:/var/lib/node/server/
-      - node_modules:/var/lib/node/server/node_modules
+      - ../api/:/var/lib/node/api/
+      - node_modules:/var/lib/node/api/node_modules
     networks:
       - kotori
     logging:
@@ -35,8 +37,8 @@ services:
       - ./postgresql/etc/:/etc/postgresql
       - pg_data:/var/lib/postgresql/data
       - ./logs/postgresql/:/var/log/postgresql
-      - ./../server/db/postgres.sql:/docker-entrypoint-initdb.d/ycreate-postgres.sql
-      - ./../server/db/create_testdb.sql:/docker${NODE_ENV--}entrypoint-initdb.d/zcreate_testdb.sql
+      - ./../api/db/postgres.sql:/docker-entrypoint-initdb.d/ycreate-postgres.sql
+      - ./../api/db/create_testdb.sql:/docker${NODE_ENV--}entrypoint-initdb.d/zcreate_testdb.sql
     networks:
       - kotori
 volumes:
