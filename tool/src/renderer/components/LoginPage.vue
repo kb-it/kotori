@@ -35,7 +35,7 @@
                                 </div>
                                 <div class="field">
                                     <div class="control">
-                                        <button v-bind:class="{'is-loading': pending}" class="button is-primary is-medium is-fullwidth" type="submit">
+                                        <button v-bind:class="{'is-loading': pending}" class="button is-primary is-medium is-fullwidth login-button" type="submit">
                                             <span class="icon"><i class="fa fa-user"></i></span>
                                             <span>Login</span>
                                         </button>
@@ -55,6 +55,7 @@
     import Vue from 'vue'
     import Component from 'vue-class-component'
     import {http} from '../config'
+    import {handleHttpError} from '../util'
 
     @Component
     export default class LoginPage extends Vue {

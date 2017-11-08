@@ -2,11 +2,10 @@
     <main>
         <nav class="panel">
             <section class="hero is-light">
-                <div class="hero-body has-text-centered">
+                <div class="hero-body has-text-centered" style="padding-top: 2px;">
                     <div class="container">
                         <h1 class="title vcenter" v-if="currentUser!=null">
-                            Logged in as
-                            <router-link to="/login" tag="button" class="button is-link is-large vcenter">
+                            <router-link to="/login" tag="button" class="button is-link is-large is-fullwidth vcenter">
                                 <span class="icon"><i class="fa fa-user"></i></span>
                                 <strong>{{ currentUser }}</strong>
                             </router-link>
@@ -16,28 +15,33 @@
                                 Sign In
                             </router-link>
                         </h1>
+                        <button @click="addFile()" class="button is-primary is-fullwidth">
+                            Add File (Click or via Drag & Drop)
+                        </button>
                     </div>
                 </div>
             </section>
-            <button @click="addFile()" class="button is-primary is-fullwidth">
-                Datei hinzufügen (Click oder Drag&Drop)
-            </button>
-            <p class="panel-heading" style="padding-bottom: 16px; display: flex; justify-content: space-between; align-items: center">
-                <span class="vcenter">Zu synchronisierende Dateien</span>
-                <button class="button is-primary vcenter" 
-                    v-bind:class="{'is-loading': pendingSync}" @click="sync()" 
-                    v-bind:disabled="!Object.keys(files).length">
-                    Synchronize Meta Data
+
+            <p class="panel-heading sync-preview-header">
+                <span class="vcenter">Selected Files</span>
+                <button class="button is-primary vcenter"
+                    v-bind:class="{'is-loading': pendingSync}" @click="sync()"
+                    v-bind:disabled="!currentUser || !Object.keys(files).length">
+                    Sync Preview
                 </button>
             </p>
-            <a class="panel-block" v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)">
+            <a v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)"
+                class="panel-block">
                 <span class="panel-icon">
                     <i v-if="file.error!=null" class="fa fa-exclamation-triangle"></i>
                     <i v-else-if="file.fp!=null" class="fa fa-music"></i>
                     <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
                 </span>
-                <span class="is-loading"></span>
-                {{ path }}
+
+                <div v-bind:title="path" class="is-clipped">
+                    <div>{{ file.tags ? file.tags.title : path }}</div>
+                    <div v-if="file.tags" class="is-size-7 has-text-grey" style="white-space: nowrap;">{{ path }}</div>
+                </div>
             </a>
             <div class="panel-block" v-if="Object.keys(files).length>0">
                 <button class="button is-danger is-fullwidth" @click="deleteSelectedItems()">
@@ -119,7 +123,7 @@
 
             let unwatch;
             let startSync = () => {
-                unwatch(); 
+                unwatch();
                 http.post("v1/tracks/query", requestedTracks.map((file) => ({fingerprint: file.fp})))
                     .then((response) => {
                         for (let responseTrack of response.data) {
@@ -150,5 +154,14 @@
     }
     .panel-block .is-danger {
         background-color: #FFCCCC;
+    }
+    .panel-icon {
+        margin-right: 1.75em;
+    }
+    .sync-preview-header {
+        padding-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center
     }
 </style>

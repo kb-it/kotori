@@ -5,6 +5,7 @@ declare var WebAssembly: any;
 declare var __static: any;
 
 import {ipcMain} from 'electron';
+import {FileTags} from '../renderer/store/modules/files'
 
 var fs = require("fs");
 var util = require("util");
@@ -37,12 +38,12 @@ export function init(isMain: boolean) {
 
 // register an asynchronous IPC interface we'll use for communication with renderer
 function registerEventHandler() {
-    ipcMain.on("get-fingerprint", (event: any, filePath: string) => {
+    ipcMain.on("get-track", (event: any, filePath: string) => {
         var dir = path.dirname(process.argv.find((val) => val.endsWith(".js")));
         var forked = child_process.fork(path.join(dir, "index-codegen.js"), [filePath]);
         forked.on("message", (msg: any) => {
             // pass the message along to the renderer
-            event.sender.send("get-fingerprint-result", filePath, msg);
+            event.sender.send("get-track-result", filePath, msg);
         });
         forked.on("error", (err: any) => console.error("child err ", err));
     });
@@ -54,13 +55,13 @@ export function getFingerprint(filePath: string, cb: FpCallback | null) {
     // node workaround since emscripten will try to use fetch else
     WebAssembly.instantiateStreaming = undefined;
 
-    var codegen = __non_webpack_require__(path.join(__static, 'codegen.js'));
+    var codegen = __non_webpack_require__(path.join(__static, "codegen.js"));
     var buffer = "";
 
     (<any>codegen)({
         arguments: [filePath],
         wasmBinaryFile: path.join(__static, "codegen.wasm"),
-        onExit: (code: number) => { 
+        onExit: (code: number) => {
             var codes: number[] | null = null;
             if (buffer[0] == "[") {
                 var data = JSON.parse(buffer);
@@ -70,7 +71,7 @@ export function getFingerprint(filePath: string, cb: FpCallback | null) {
                 var raw = new Buffer(data[0].code, "base64");
                 var buf = zlib.unzipSync(raw);
 
-                // we already presort & make the codes unique since thats what 
+                // we already presort & make the codes unique since thats what
                 // the search part of echoprint server also does
                 // we stick to that for now.
                 codes = [];
@@ -94,5 +95,33 @@ export function getFingerprint(filePath: string, cb: FpCallback | null) {
         // errors land on stderr anyways (due to child_process.execSync handling pretty much all errors than can occur)
         // so no need to print them again
         quit: (status: any, err: any) => { if (cb) cb(null, err); cb = null; },
+    });
+}
+
+export function metaData(filePath: string, tags: FileTags | null, cb: (tags: FileTags | null, err?: any) => void) {
+    // node workaround since emscripten will try to use fetch else
+    WebAssembly.instantiateStreaming = undefined;
+
+    var taglib = __non_webpack_require__(path.join(__static, "taglib.js"));
+    var buffer = fs.readFileSync(filePath);
+
+    (<any>taglib)({
+        wasmBinaryFile: path.join(__static, "taglib.wasm"),
+        io_buffer: buffer,
+        tags: tags,
+        onExit: function(code: number) {
+            if (code == 0) {
+                if (this.tags) {
+                    // TODO: maybe backup the file
+                    fs.writeFileSync(filePath, this.io_buffer);
+                }
+                cb(this.tags, null);
+            } else cb(null, code);
+        },
+        print: (output: string) => {
+            console.log("metaDataOut: ", output);
+        },
+        printErr: (e: any) => console.log("metaData/An error occurred"),
+        quit: (status: any, err: any) => { console.log("metaData/quit"); }
     });
 }
