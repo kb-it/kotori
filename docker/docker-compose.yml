@@ -13,7 +13,7 @@ services:
     env_file: ${NODE_ENV:-development}.env
     ports:
       - "3000:3000"
-    command: bash -c "cd /var/lib/node/api/ && npm install && NODE_ENV=${NODE_ENV:-development} npm run start"
+    command: bash -c "service sendmail start && cd /var/lib/node/api/ && npm install && NODE_ENV=${NODE_ENV:-development} npm run start"
     volumes:
       - ../api/:/var/lib/node/api/
       - node_modules:/var/lib/node/api/node_modules
