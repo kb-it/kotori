@@ -37,7 +37,7 @@
         ],
         "switch-default": true,
         "trailing-comma": [
-        	true, 
+        	true,
         	{
 	        	"multiline": "never",
 	        	"singleline": "never"

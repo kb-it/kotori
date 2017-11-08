@@ -1,10 +1,20 @@
 "use strict";
-import {AppConfig} from "../config/AppConfig";
-import {Client, ClientConfig, QueryResult} from "pg";
+import {Utils} from "../utils/Utils";
+import {PGClientSingleton} from "../db/PGClientSingleton";
+import {JWTUserData} from "../auth/JWTSingleton";
 
-type Fingerprint = number[];
-
+export type Fingerprint = number[];
+type TrackId = number;
 type MetaDataRow = {
+    track_id: TrackId;
+    tag_type_name: string;
+    tag_id?: number;
+    tag_value: Buffer;
+    tag_revision?: number;
+    tag_type_id?: number;
+};
+
+interface SearchResultRow extends MetaDataRow {
     // the queried fingerprint
     query_idx: number;
     // the matching fingerprint
@@ -12,52 +22,98 @@ type MetaDataRow = {
     fingerprint_id: number;
     // a score indicating how similar the given query fingerprint and fingerprint are
     // a number 0 <= score <= 1
-    score: number,
-    track_id: string;
-    tag_type_name: string;
-    tag_value: Buffer;
-}
-
-export interface MetaData {
-    fingerprint: Fingerprint;
-}
-export interface TrackMetaData {
-    trackId: string;
     score: number;
 }
-
-export type FingerprintResult = {
+interface TrackMetaData extends TrackTag {
+    trackId: TrackId;
+    score: number;
+}
+export type QueryResponse = {
     fingerprint: Fingerprint;
     tracks: TrackMetaData[];
-}
+};
+
+type TrackTag = {
+    [tagName: string]: string|number;
+};
+type TrackTagData = {
+    tagTypeId: number;
+    value: number | string;
+    revision: number;
+};
+type TagNameDataMap = {
+    [tagName: string]: TrackTagData;
+};
+type TrackData = {
+    trackId: TrackId;
+    tags: TagNameDataMap;
+};
+type TrackDataMap = {
+    [trackId: number]: TagNameDataMap;
+};
+
+type TagType = {
+    id: number;
+    name: string;
+};
+
+export type UpdateTrackData = {
+    trackId: TrackId;
+    tags: TrackTag; // several tag-values of a track, mapped to its tagnames (keys)
+};
+export type InsertTrackData = {
+    fingerprint: Fingerprint;
+    tags: TrackTag; // several tag-values of a track, mapped to its tagnames (keys)
+};
 
 export class SongModel {
-    private clientConfig: ClientConfig = {
-        user: AppConfig.POSTGRES_USER,
-        host: AppConfig.POSTGRES_HOST,
-        database: "kotori",
-        password: AppConfig.POSTGRES_PASSWORD,
-        port: AppConfig.POSTGRES_PORT
+    private static pgClient = PGClientSingleton.getClient();
+    private static validTagTypesCache: {
+        value: TagType[],
+        updated_at: number
     };
-    private client: Client;
 
-    public constructor() {
-        if (AppConfig.APP_TESTMODE_ENABLED) {
-            this.clientConfig.database += "_test";
-            console.log("Testmode enabled!");
+    /**
+     * @description Returns all valid tagtype names from db
+     * For performance reasons, tagtype names are stored in internal cache.
+     * @returns {Promise<string[]>} All valid tagtype names
+     */
+    private static async getValidTagTypes(): Promise<TagType[]> {
+        const rebuildCacheAfterMin = 15,
+            msPerSec = 1000,
+            secPerMin = 60,
+            mustRebuild = !(this.validTagTypesCache &&
+                this.validTagTypesCache.value &&
+                this.validTagTypesCache.updated_at + rebuildCacheAfterMin * msPerSec * secPerMin >= Date.now());
+
+        if (mustRebuild) {
+            const sql = `SELECT id, name
+                    FROM tag_type
+                    ORDER BY name`,
+                queryResultRows = (await this.pgClient.query(sql)).rows,
+                tagTypes: TagType[] = queryResultRows.map(queryResultRow => {
+                    return {
+                        id: queryResultRow.id,
+                        name: queryResultRow.name
+                    };
+                });
+
+            this.validTagTypesCache = {
+                value: tagTypes,
+                updated_at: Date.now()
+            };
         }
-        this.client = new Client(this.clientConfig);
-        this.client.connect();
+
+        return this.validTagTypesCache.value;
     }
 
     /**
-     * Returns meta-data of specific tracks by its fingerprint
-     * @param {number[][]} fingerprints Query tracks matching those given fingerprints
-     * @returns {MetaDataRow[]} Table-rows consisting of track-meta-data as returned from DBS
-     * 
+     * @description Returns meta-data of specific tracks by its fingerprint
+     * @param {number[][]} fingerprints Fingerprints of tracks, whose meta-data shall be retrieved from db
+     * @returns {SearchResult[]} Table-rows consisting of track-meta-data as returned from DBS
      */
-    private async requestMetaData(fingerprints: number[][]): Promise<MetaDataRow[]> {
-        let sql: string = `SELECT DISTINCT ON (track.id, tag_type.id)
+    private static async requestMetaData(fingerprints: number[][]): Promise<SearchResultRow[]> {
+        const sql = `SELECT DISTINCT ON (track.id, tag_type.id)
                 last_value(track.id) OVER (
                     PARTITION BY
                         track.id,
@@ -66,13 +122,9 @@ export class SongModel {
                 ) AS track_id,
                 tag_type.name AS tag_type_name,
                 tag.value AS tag_value,
-                fps.column1 AS query_idx, matches.hash AS fingerprint, matches.id AS fingerprint_id, matches.score 
+                fps.column1 AS query_idx, matches.hash AS fingerprint, matches.id AS fingerprint_id, matches.score
                 FROM (
-                    VALUES ${
-                        Array(fingerprints.length).fill(0)
-                            .map((e: number, i: number) => "(" + i + ", $" + (i + 1) + ")")
-                            .join(",")
-                    }
+                    VALUES ${Utils.toSqlPlaceholderValuesList(fingerprints.length)}
                 ) fps JOIN LATERAL (
                     SELECT fingerprint.id,
                            fingerprint.hash,
@@ -84,46 +136,307 @@ export class SongModel {
                 INNER JOIN track ON track.id_fingerprint = matches.id
                 INNER JOIN tag ON tag.id_track = track.id
                 INNER JOIN tag_type ON tag.id_tag_type = tag_type.id
-            `,
-            results: QueryResult = await this.client.query(sql, fingerprints),
-            rows: MetaDataRow[] = results.rows;
+            `;
+        let results = await this.pgClient.query(sql, fingerprints),
+            rows: SearchResultRow[] = results.rows;
+
         return rows;
     }
 
     /**
-     * Requests all meta-data values of several tracks, specified by its fingerprint
+     * @description Requests all meta-data values of several tracks, specified by its fingerprint
      * @param {number[][]} fingerprints Fingerprints of tracks
      * @returns {FingerprintResult[]} Meta-data values of tracks, grouped by related fingerprints
      */
-    public async queryAll(fingerprints: number[][]): Promise<FingerprintResult[]> {
-        const metaDataRows: MetaDataRow[] = await this.requestMetaData(fingerprints);
-        let results: FingerprintResult[] = fingerprints.map((fp: Fingerprint) => {
-            return {fingerprint: fp, tracks: []} as FingerprintResult;
+    public static async queryAll(fingerprints: number[][]): Promise<QueryResponse[]> {
+        const searchResults = await this.requestMetaData(fingerprints);
+        let results = fingerprints.map((fp: Fingerprint) => {
+            return {fingerprint: fp, tracks: []} as QueryResponse;
         });
 
-        metaDataRows.forEach(row => {
-            let tracks: TrackMetaData[] = results[row.query_idx].tracks,
+        searchResults.forEach(row => {
+            let currentTrackId = Utils.parseDecimalInt(String(row.track_id)),
+                tracks: TrackMetaData[] = results[row.query_idx].tracks,
                 lastTrack: TrackMetaData = tracks[tracks.length - 1];
-    
-            if (!lastTrack || lastTrack.trackId !== row.track_id) {
-                lastTrack = {trackId: row.track_id, score: row.score} as TrackMetaData;
+
+            if (!lastTrack || lastTrack.trackId !== currentTrackId) {
+                lastTrack = {
+                    trackId: currentTrackId,
+                    score: row.score
+                } as TrackMetaData;
                 tracks.push(lastTrack);
             }
             (<any>lastTrack)[row.tag_type_name] = Utils.encodeTagValue(row.tag_value);
         });
         return results;
     }
-}
 
-class Utils {
     /**
-     * Converts value of a tag, represented by a Buffer, to an UTF8 string
-     * @param {Buffer} tagValueBuffer Value of a tag as Buffer
-     * @returns {string} UTF8-encoded tag value 
+     * @description Returns meta-data of specific tracks, determined by its track-ids
+     * @param {TrackId[]} trackIds Track-ids of tracks, whose meta-data shall be retrieved from db
+     * @returns {MetaDataRow[]} Table-rows consisting of track-meta-data as returned from DBS
      */
-    public static encodeTagValue(tagValueBuffer: Buffer): string {
-        const tagValue: string = Buffer.from(tagValueBuffer).toString("utf-8");
+    private static async requestMetaDataRowsByIds(trackIds: TrackId[]): Promise<MetaDataRow[]> {
+        const sql = `SELECT DISTINCT ON (track.id, tag_type.id)
+                last_value(track.id) OVER (
+                    PARTITION BY track.id,
+                        tag_type.id
+                    ORDER BY tag.revision DESC
+                ) AS track_id,
+                tag_type.id AS tag_type_id,
+                tag_type.name AS tag_type_name,
+                tag.value AS tag_value,
+                tag.revision AS tag_revision
+                FROM track
+                LEFT JOIN tag ON tag.id_track = track.id
+                LEFT JOIN tag_type ON tag.id_tag_type = tag_type.id
+                WHERE track.id = ANY($1)
+                ORDER BY track.id, tag_type.id ASC;
+            `;
+        let queryResultsRows: MetaDataRow[] = (await this.pgClient.query(sql, [trackIds])).rows;
 
-        return tagValue;
+        return queryResultsRows;
+    }
+
+    private static rowsToTrackTagDataMap(metaDataRows: MetaDataRow[]): TrackDataMap {
+        const trackTagMap: TrackDataMap = metaDataRows.reduce((trackTagMap: TrackDataMap, row: MetaDataRow) => {
+            const trackId = row.track_id,
+                tagTypeId = row.tag_type_id,
+                tagValue = Utils.encodeTagValue(row.tag_value) || "",
+                revision = row.tag_revision;
+            let trackData: TagNameDataMap = (<any> trackTagMap)[trackId];
+
+            if (!trackData) {
+                trackData = {} as TagNameDataMap;
+                (<any> trackTagMap)[trackId] = trackData;
+            }
+            trackData[row.tag_type_name] = {
+                tagTypeId: tagTypeId as number,
+                value: tagValue,
+                revision: revision || 0
+            };
+            return trackTagMap;
+        }, {});
+
+        return trackTagMap;
+    }
+
+    private static async getChangedTagDataMap(userTags: TrackTag,
+                                            storedTagDataMap: TagNameDataMap): Promise<TagNameDataMap> {
+        const userTagNames = Object.getOwnPropertyNames(userTags),
+            validTagTypes = await this.getValidTagTypes(),
+            changedTagData: TagNameDataMap = await userTagNames.reduce((changedTags, userTagName) => {
+                const storedTagData = storedTagDataMap && storedTagDataMap[userTagName],
+                    userTagValue = userTags[userTagName],
+                    validUserTagValue = userTagValue || (typeof userTagValue === "number" && !isNaN(userTagValue));
+
+                if (validUserTagValue) {
+                    const [tagType] = validTagTypes.filter((validTag: TagType) => {
+                            return validTag.name === userTagName;
+                        }),
+                        isKnownTagType = !!tagType,
+                        isTagValueUpdated = validUserTagValue && storedTagData && storedTagData.value !== userTagValue;
+
+                    /**
+                     * If current tag-type exists in db, tag-value passed from user must be defined and
+                     * must differ from stored value.
+                     * If current tag-type is not stored in db yet, tag-type must at least be valid.
+                     */
+                    if (isTagValueUpdated || isKnownTagType) {
+                        (<any> changedTags)[userTagName] = {
+                            tagTypeId: isTagValueUpdated ? storedTagData.tagTypeId : tagType.id,
+                            value: userTagValue,
+                            revision: isTagValueUpdated ? storedTagData.revision : 0
+                        };
+                    } else {
+                        throw new TypeError(`Unknown tag '${userTagName}' passed`);
+                    }
+                }
+                return changedTags;
+            }, {} as TagNameDataMap);
+
+        return changedTagData;
+    }
+
+    private static async getChangedTrackData(userTrackData: UpdateTrackData[],
+                                            storedTrackTagDataMap: TrackDataMap): Promise<TrackData[]> {
+        let updateTrackData: TrackData[] = [];
+
+        for (let updateTrack of userTrackData) {
+            const storedTrackTags: TagNameDataMap = (<any> storedTrackTagDataMap)[updateTrack.trackId];
+
+            if (storedTrackTags && Object.keys(storedTrackTags).length) {
+                if (updateTrack.tags) {
+                    const changedTags = await this.getChangedTagDataMap(updateTrack.tags, storedTrackTags),
+                        hasChangedTags = Object.keys(changedTags).length;
+
+                    if (hasChangedTags) {
+                        updateTrackData.push({
+                            trackId: updateTrack.trackId,
+                            tags: changedTags
+                        });
+                    }
+                }
+            } else {
+                throw TypeError(`Unknown trackId: ${updateTrack.trackId}`);
+            }
+        }
+        return updateTrackData;
+    }
+
+    /**
+     * @description Returns meta data of a stored track and its related tags
+     * @param {UpdateTrackData[]} updateDataList
+     * @returns {Promise<TrackDataMap>}
+     */
+    private static async getStoredTrackDataMap(updateDataList: UpdateTrackData[]): Promise<TrackDataMap> {
+        const metaDataRows = await this.requestMetaDataRowsByIds(
+                updateDataList.map(trackData => trackData.trackId)
+            );
+        const storedTrackDataMap = this.rowsToTrackTagDataMap(metaDataRows);
+
+        return storedTrackDataMap;
+    }
+
+    /**
+     * @description Inserts new revision of tag-values from a specific track into db
+     * @param {object} obj Wrapper for trackData and userData
+     * @param {TrackData} obj.trackData Contains tag and track data of a specific track for performing a insert
+     * @param {JWTUserData} obj.userData Contains id of a user-record
+     */
+    private static async insertTrackData({trackData, userData}: {trackData: TrackData, userData: JWTUserData}) {
+        const tagNames = Object.getOwnPropertyNames(trackData.tags),
+            placeholders = tagNames.map((_: string, trackIdx: number) => {
+                const colCount = 5, // id_tag_type, id_track, id_user, revision, value
+                    $s = Array(colCount).fill("$");
+
+                return "(" + $s.map(($, tagIdx) => $ + ((trackIdx * colCount) + (tagIdx + 1))).join(",") + ")";
+            }).join(","),
+            sql = `INSERT INTO tag(id_tag_type, id_track, id_user, revision, value) VALUES ${placeholders}`,
+            parameters = tagNames.reduce((parameters, tagName) => {
+                const trackTagData = trackData.tags[tagName];
+
+                return parameters.concat(<string[]>[
+                    trackTagData.tagTypeId,
+                    trackData.trackId,
+                    userData.id,
+                    trackTagData.revision + 1,
+                    trackTagData.value
+                ]);
+            }, [] as string[]);
+
+        this.pgClient.query(sql, parameters);
+    }
+
+    /**
+     * @description Inserts valid tags, which differ from previous state, into db
+     * @param {JWTUserData} jwtUserData JWTUserData of the user-account, which triggers the update
+     * @param {UpdateTrackData[]} updateDataList Tag-values mapped to its related track-ids
+     * @returns {boolean} Equals true if update has been successfully processed
+     */
+    private static async updateMetaData(jwtUserData: JWTUserData, updateDataList: UpdateTrackData[]): Promise<void> {
+        const storedTrackTagDataMap = await this.getStoredTrackDataMap(updateDataList),
+            updateTrackData = await this.getChangedTrackData(updateDataList, storedTrackTagDataMap);
+
+        for (let trackData of updateTrackData) {
+            await this.insertTrackData({trackData: trackData, userData: jwtUserData});
+        }
+    }
+
+    /**
+     * @description Creates new db-records for passed tag-values of specific tracks in a single transaction,
+     * where invalid tags are skipped and unknown tracks throw error
+     * @param {JWTUserData} jwtUserData JWTUserData of the user-account, which triggers the update
+     * @param {UpdateTrackData[]} updateDataList Tag-values mapped to its related track-ids
+     * @returns {boolean} Equals true if update has been successfully processed
+     */
+    public static async updateAll(jwtUserData: JWTUserData, updateDataList: UpdateTrackData[]): Promise<void> {
+        await this.executeInTransaction(async () => {
+            await this.updateMetaData(jwtUserData, updateDataList);
+        });
+    }
+
+    /**
+     * @description Inserts a new track into db and returns id of related record.
+     * If no related fingerprint-record exists yet, one will be created.
+     * @param {Fingerprint} fingerprint Fingerprint related to the new track
+     * @param {number} userId ID of the user, who triggers insertion of new track
+     * @returns {number} Id of track-record
+     */
+    private static async insertTrack(fingerprint: Fingerprint, userId: number): Promise<number> {
+        const sql = `
+                WITH fp_select AS (
+                    SELECT id
+                    FROM fingerprint
+                    WHERE hash = $1
+                ), fp_insert AS (
+                    INSERT INTO fingerprint(hash)
+                    SELECT $1
+                    WHERE NOT EXISTS(
+                        SELECT id
+                        FROM fp_select
+                    )
+                    RETURNING id
+                ), fp_id AS (
+                    SELECT id
+                    FROM fp_select
+                    UNION
+                    SELECT id
+                    FROM fp_insert
+                ) INSERT INTO track(id_user, id_fingerprint)
+                    SELECT $2, id AS id_fingerprint
+                    FROM fp_id
+                    RETURNING track.id AS track_id
+            `,
+            [firstResultRow] = (await this.pgClient.query(sql, [fingerprint, userId])).rows,
+            {track_id: trackId}: {track_id: number} = firstResultRow;
+
+        return trackId;
+    }
+
+    private static async insertMetaData(jwtUserData: JWTUserData,
+                                        insertDataList: InsertTrackData[]): Promise<void> {
+        const updateDataList: UpdateTrackData[] = await Promise.all(insertDataList.map(
+            async (trackData: InsertTrackData) => {
+                const trackId = await this.insertTrack(trackData.fingerprint, jwtUserData.id),
+                    updateTrackData: UpdateTrackData = {
+                        trackId: trackId,
+                        tags: trackData.tags
+                    };
+
+                return updateTrackData;
+            }));
+
+        await this.updateMetaData(jwtUserData, updateDataList);
+    }
+
+    public static async insertAll(jwtUserData: JWTUserData, insertDataList: InsertTrackData[]): Promise<void> {
+        await this.executeInTransaction(async () => {
+            await this.insertMetaData(jwtUserData, insertDataList);
+        });
+    }
+
+    /**
+     * @description Returns all valid tag names
+     * @returns {string[]} Valid tag names
+     */
+    public static async getTagNames(): Promise<string[]> {
+        const validTagTypes = await this.getValidTagTypes(),
+            tagNames: string[] = validTagTypes.map((validTagType: TagType) => {
+                return validTagType.name;
+            });
+
+        return tagNames;
+    }
+
+    private static async executeInTransaction(queryFn: Function) {
+        try {
+            await this.pgClient.query("BEGIN");
+            await queryFn();
+            await this.pgClient.query("COMMIT");
+        } catch (e) {
+            await this.pgClient.query("ROLLBACK");
+            throw e;
+        }
     }
 }

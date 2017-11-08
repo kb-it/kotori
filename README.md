@@ -140,3 +140,42 @@ Missing or incomplete ID3 tags of tracks in a huge music collection can be easil
                 },
                 ...
             ]
+* /v1/tracks
+    * Method: PUT
+    * Accept: application/json
+    * Description:
+        Updates stored information of specific songs stored on server with passed values. 
+        Expects several song information grouped by its related fingerprints as JSON in request-body. 
+    * Example:
+        * Request-Body:
+            ```
+            [
+                {
+                    "fingerprint": [1, 1, 1],
+                    "tags": {
+                        "year": 1981
+                    }
+                },
+                {
+                    "fingerprint": [0, 0],
+                    "tags": {
+                        "artist": "Jane Doe",
+                        "title": "Foo",
+                        ...
+                    }
+                },
+                {
+                    "fingerprint": [0, 1],
+                    "tags": {
+                        "album": "Baz Bat - Part 1"
+                        ...
+                    }
+                },
+                {
+                    "fingerprint": [1, 0],
+                    "tags": {
+                        ...
+                    }
+                },
+                ...
+            ]

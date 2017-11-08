@@ -1,6 +1,6 @@
 "use strict";
 import {AppConfig} from "../config/AppConfig";
-import {Client, ClientConfig, QueryResult} from "pg";
+import {Client, ClientConfig} from "pg";
 
 export class PGClientSingleton {
     private static client: Client;

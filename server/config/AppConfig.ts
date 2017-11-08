@@ -1,5 +1,4 @@
 "use strict";
-import {Utils} from "../utils/Utils";
 
 type ConfigMap = {
     APP_TESTMODE_ENABLED: boolean;

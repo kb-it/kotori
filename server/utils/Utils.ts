@@ -36,7 +36,7 @@ export class Utils {
      */
     public static toSqlPlaceholderValuesList(placeholderCount: number): string {
         const sql = Array(placeholderCount).fill(0)
-            .map((value: number, i: number) => "(" + i + ", $" + (i + 1) + ")")
+            .map((_: number, i: number) => "(" + i + ", $" + (i + 1) + ")")
             .join(",");
 
         return sql;

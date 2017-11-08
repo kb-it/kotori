@@ -1,22 +1,9 @@
 "use strict";
-import {use, assert} from "chai";
-import {BadRequestError} from "routing-controllers";
+import {assert} from "chai";
 import {UserController} from "../controllers/UserController";
 import {JWT} from "../auth/JWTSingleton";
-
-/**
- * add chai-as-promised to scope for having access to promise-specific asserts
- *
- * !ATTENTION!
- * chai-as-promised v.7.1.1 does not behave as described on:
- * https://github.com/domenic/chai-as-promised
- *
- * assert.isRejected(promise, Error, "optional message")
- * "optional message" is not really an optional message for describing the test-case,
- * but the /error message matcher/ as string. This string seems to be converted to RegExp
- * and tested on message of thrown Error. No custom messages may be added!
- */
-use(require("chai-as-promised"));
+import * as HTTP_STATUS_CODE from "http-status-codes";
+import {JSONResponse} from "../types/JSONResponse";
 
 const MockRequest = require("mock-express-request"),
     MockResponse = require("mock-express-response"),
@@ -28,84 +15,165 @@ const MockRequest = require("mock-express-request"),
     authHeaderValuePattern = /^Bearer (([0-9a-zA-Z\-_]{36,}\.[0-9a-zA-Z\-_]{36,}){2})$/,
     uuidPattern = /^[a-z0-9]{8}(-[a-z0-9]{4}){3}-[a-z0-9]{12}$/;
 
-async function createTestAccount(): Promise<string> {
-    return String(await userController.create({
-        mail: validMail,
-        password: validPw
-    }));
+async function createTestAccount(): Promise<{jsonRes: JSONResponse, mockRes: any}> {
+    const mockResponse = new MockResponse();
+
+    return {
+        jsonRes: await userController.create({
+            mail: validMail,
+            password: validPw
+        }, mockResponse),
+        mockRes: mockResponse
+    };
 }
 
 describe("Creating user account", () => {
-    it("Should throw as password is empty", async () => {
-        return await assert.isRejected(userController.create({
-            mail: validMail,
-            password: ""
-        }), BadRequestError);
+    it("Should fail as password is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: validMail,
+                password: ""
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least .* characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as minimum password length is not reached", async () => {
-        return await assert.isRejected(userController.create({
-            mail: validMail,
-            password: "a".repeat(minPwLength - 1)
-        }), BadRequestError);
+    it("Should fail as minimum password length is not reached", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: validMail,
+                password: "a".repeat(minPwLength - 1)
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as minimum password length is not reached");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least .* characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains control characters", async () => {
-        return await assert.isRejected(userController.create({
-            mail: validMail,
-            password: "\n" + validPw
-        }), BadRequestError);
+    it("Should fail as password contains control characters", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: validMail,
+                password: "\n" + validPw
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as minimum password length is not reached");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain control characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains leading whitespace", async () => {
-        return await assert.isRejected(userController.create({
-            mail: validMail,
-            password: " " + validPw
-        }), BadRequestError);
+    it("Should fail as password contains leading whitespace", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: validMail,
+                password: " " + validPw
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains leading whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains trailing whitespace", async () => {
-        return await assert.isRejected(userController.create({
-            mail: validMail,
-            password: validPw + " "
-        }), BadRequestError);
+    it("Should fail as password contains trailing whitespace", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: validMail,
+                password: validPw + " "
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains trailing whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as mail-address is empty", async () => {
-        return await assert.isRejected(userController.create({
-            mail: "",
-            password: validPw
-        }));
+    it("Should fail as mail-address is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: "",
+                password: validPw
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid mail-address/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as mail-address is invalid", async () => {
-        await assert.isRejected(userController.create({
-            mail: "aaaa",
-            password: validPw
-        }));
-        await assert.isRejected(userController.create({
-            mail: "aaa@bbb.",
-            password: validPw
-        }));
-        await assert.isRejected(userController.create({
-            mail: "@bbb.cc",
-            password: validPw
-        }));
-        return await assert.isRejected(userController.create({
-            mail: "aaa@.cc",
-            password: validPw
-        }));
+    it("Should fail as mail-address is invalid", async () => {
+        const invalidMailAddresses = [
+            "aaaa",
+            "aaa@bbb.",
+            "@bbb.cc",
+            "aaa@.cc"
+        ];
+
+        for (let invalidMailAddress of invalidMailAddresses) {
+            const mockResponse = new MockResponse(),
+                jsonResponse = await userController.create({
+                    mail: "aaaa",
+                    password: validPw
+                }, mockResponse);
+
+            assert.strictEqual(mockResponse.statusCode,
+                                HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+            assert.isDefined(jsonResponse, "must return json as response");
+            assert.isFalse(jsonResponse.success, `must fail as mail-address ${invalidMailAddress} is invalid`);
+            assert.isString(jsonResponse.error, "error message must be returned");
+            assert.match(String(jsonResponse.error), /Invalid mail-address/i,
+                "correct error message must be returned");
+        }
+        return true;
     });
 
-    it("Should throw as mail-address is already in use", async () => {
-        return await assert.isRejected(userController.create({
-            mail: "bestof1950@domain.tld",
-            password: validPw
-        }));
+    it("Should fail as mail-address is already in use", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.create({
+                mail: "bestof1950@domain.tld",
+                password: validPw
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, `must fail as mail-address is already in use`);
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Mail-address is already in use/i,
+            "correct error message must be returned");
     });
 
     it("Should successfully create new account", async () => {
-        return await assert.isFulfilled(createTestAccount());
+        const {jsonRes: jsonResponse, mockRes: mockResponse} = await createTestAccount();
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.OK, "should send http-status 200");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isTrue(jsonResponse.success, `must succeed`);
+        return assert.isUndefined(jsonResponse.error, "error message must not be returned");
     });
 
     // clean up after test-suite --> remove created user-account from db
@@ -115,33 +183,64 @@ describe("Creating user account", () => {
 });
 
 describe("Activating user account", () => {
-    it("Should throw as activation token is empty", async () => {
-        return await assert.isRejected(userController.activate(""), BadRequestError);
+    it("Should fail as activation token is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.activate("", mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.NOT_FOUND, "should send http-status 404");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, `must fail as activation-token is empty`);
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid registration-token format/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as activation token has length 0", async () => {
-        return await assert.isRejected(userController.activate(""), Error);
-    });
+    it("Should fail as activation token is unknown", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.activate("00000000-0000-0000-0000-000000000000", mockResponse);
 
-    it("Should throw as activation token is unknown", async () => {
-        return await assert.isRejected(userController.activate("00000000-0000-0000-0000-000000000000"),
-            BadRequestError);
+        assert.strictEqual(mockResponse.statusCode,
+                             HTTP_STATUS_CODE.NOT_FOUND, "should send http-status 404");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, `must fail as activation-token is unknown`);
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Tokens are only valid for \d+ hours/i,
+            "correct error message must be returned");
     });
 
     it("Should successfully activate account", async () => {
-        const activationToken = await createTestAccount();
+        const {jsonRes: createResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: activationToken} = createResponse,
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         assert.isDefined(activationToken, "activation-token must be defined");
         assert.isString(activationToken, "activation-token must be a string");
         assert.isNotEmpty(activationToken, "activation-token must not be empty");
         assert.match(activationToken, uuidPattern, "activation-token must match UUID pattern");
-        return await assert.isFulfilled(userController.activate(activationToken));
+
+        jsonResponse = await userController.activate(activationToken, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.OK, "should send http-status 200");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isTrue(jsonResponse.success, `must succeed`);
+        return assert.isUndefined(jsonResponse.error, "error message must not be returned");
     });
 
-    it("Should throw as activation-token is expired", async () => {
-        const activationToken = await createTestAccount();
+    it("Should fail as activation-token is expired", async () => {
+        const {jsonRes: createResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: activationToken} = createResponse,
+            mockResponse = new MockResponse(),
+            activateResponse = await userController.activate(activationToken, mockResponse, 0);
 
-        return await assert.isRejected(userController.activate(activationToken, 0));
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.NOT_FOUND, "should send http-status 404");
+        assert.isDefined(activateResponse, "must return json as response");
+        assert.isFalse(activateResponse.success, `must fail as activation-token is expired`);
+        assert.isString(activateResponse.error, "error message must be returned");
+        return assert.match(String(activateResponse.error), /Tokens are only valid for \d+ hours/i,
+            "correct error message must be returned");
     });
 
     // clean up after all test-cases --> remove created user-account from db
@@ -151,54 +250,107 @@ describe("Activating user account", () => {
 });
 
 describe("Requesting new activation-token", () => {
-    it("Should throw as mail-address is empty", async () => {
-        return await assert.isRejected(userController.requestActivationToken({
-            mail: ""
-        }), BadRequestError);
+    it("Should fail as mail-address is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.requestActivationToken({
+                mail: ""
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid mail-address/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as mail-address is not in use", async () => {
-        return await assert.isRejected(userController.requestActivationToken({
-            mail: "aaa@bbb.cc"
-        }), BadRequestError);
+    it("Should fail as mail-address is not in use", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.requestActivationToken({
+                mail: "aaa@bbb.cc"
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is not in use");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Mail-address is not in use/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as user-account is already activated", async () => {
-        return await assert.isRejected(userController.requestActivationToken({
-            mail: "bestof1950@domain.tld"
-        }));
+    it("Should fail as user-account is already activated", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.requestActivationToken({
+                mail: "bestof1950@domain.tld"
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as user-account is already activated");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Account must be activated already/i,
+            "correct error message must be returned");
     });
 
     it("Should successfully return new activation-token", async () => {
-        let oldActivationToken = await createTestAccount(),
-            newActivationToken = await userController.requestActivationToken({
+        const {jsonRes: createResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: oldActivationToken} = createResponse,
+            mockResponse = new MockResponse(),
+            jsonResponse = await userController.requestActivationToken({
                 mail: validMail
-            });
+            }, mockResponse),
+            {testExclusive: newActivationToken} = jsonResponse;
 
+        assert.strictEqual(mockResponse.statusCode,
+                        HTTP_STATUS_CODE.OK, "should send http-status 200");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isTrue(jsonResponse.success, "requesting activation token must succeed");
+        assert.isUndefined(jsonResponse.error, "error message must be undefined");
         assert.isString(newActivationToken, "new activation-token must be a string");
         assert.notStrictEqual(oldActivationToken, newActivationToken,
             "former and new activation-tokens must differ!");
         return await userController.delete(validMail);
     });
 
-    it("Should throw as newly requested activation-token must invalidate all previous activation-tokens of user",
+    it("Should fail as newly requested activation-token must invalidate all previous activation-tokens of user",
     async () => {
-        let oldActivationToken = await createTestAccount();
+        const {jsonRes: createResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: oldActivationToken} = createResponse,
+            tokenMockResponse = new MockResponse(),
+            activationMockResponse = new MockResponse(),
+            tokenJsonResponse = await userController.requestActivationToken({
+                mail: validMail
+            }, tokenMockResponse),
+            activateResponse = await userController.activate(oldActivationToken, activationMockResponse);
 
-        await userController.requestActivationToken({
-            mail: validMail
-        });
-        return await assert.isRejected(userController.activate(oldActivationToken), BadRequestError);
+        assert.isTrue(tokenJsonResponse.success, "requesting new activation-token should succeed");
+        assert.strictEqual(activationMockResponse.statusCode,
+                            HTTP_STATUS_CODE.NOT_FOUND, "should send http-status 404");
+        assert.isDefined(activateResponse, "must return json as response");
+        assert.isFalse(activateResponse.success, `must fail as old token should have been invalidated`);
+        assert.isString(activateResponse.error, "error message must be returned");
+        return assert.match(String(activateResponse.error), /Tokens are only valid for \d+ hours/i,
+            "correct error message must be returned");
     });
 
     it("Should be able to successfully activate account with new token", async () => {
-        let activationToken;
+        const tokenMockResponse = new MockResponse(),
+            activationMockResponse = new MockResponse();
+        let tokenJsonResponse: JSONResponse,
+            activationToken,
+            activationJsonResponse;
 
         await createTestAccount();
-        activationToken = await userController.requestActivationToken({
+        tokenJsonResponse = await userController.requestActivationToken({
             mail: validMail
-        });
-        return await assert.isFulfilled(userController.activate(<string> activationToken));
+        }, tokenMockResponse);
+        assert.isTrue(tokenJsonResponse.success, "requesting new activation-token should succeed");
+        activationToken = tokenJsonResponse.testExclusive;
+        activationJsonResponse = await userController.activate(<string> activationToken, activationMockResponse);
+        return assert.isTrue(activationJsonResponse.success, "activation must have succeeded");
     });
 
     // clean up after all test-cases --> remove created user-account from db
@@ -208,63 +360,98 @@ describe("Requesting new activation-token", () => {
 });
 
 describe("Logging into user account", () => {
-    it("Should throw as mail-address is empty", async () => {
-        const mockResponse = new MockResponse();
+    it("Should fail as mail-address is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.login({
+                mail: "",
+                password: validMail
+            }, mockResponse);
 
-        return await assert.isRejected(userController.login({
-            mail: "",
-            password: validMail
-        }, mockResponse), BadRequestError, "Invalid login credentials");
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid login credentials/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password is empty", async () => {
-        const mockResponse = new MockResponse();
+    it("Should fail as password is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.login({
+                mail: validMail,
+                password: ""
+            }, mockResponse);
 
-        return await assert.isRejected(userController.login({
-            mail: validMail,
-            password: ""
-        }, mockResponse), BadRequestError);
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid login credentials/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as login credentials are unknown", async () => {
-        const mockResponse = new MockResponse();
+    it("Should fail as login credentials are unknown", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.login({
+                mail: "aaa@bbb.ccc",
+                password: "p4ssw0rd"
+            }, mockResponse);
 
-        return await assert.isRejected(userController.login({
-            mail: "aaa@bbb.ccc",
-            password: "p4ssw0rd"
-        }, mockResponse), BadRequestError);
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as login credentials are unknown");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid login credentials/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as account is banned", async () => {
-        const mockResponse = new MockResponse();
+    it("Should fail as account is banned", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.login({
+                mail: "prankster@domain.tld",
+                password: "bugmenot"
+            }, mockResponse);
 
-        return await assert.isRejected(userController.login({
-            mail: "prankster@domain.tld",
-            password: "bugmenot"
-        }, mockResponse), BadRequestError);
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as account is banned");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Account has been disabled/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as account is not activated", async () => {
+    it("Should fail as account is not activated", async () => {
         const mockResponse = new MockResponse();
+        let jsonResponse;
 
         await createTestAccount();
-        return await assert.isRejected(userController.login({
+        jsonResponse =  await userController.login({
             mail: validMail,
             password: validPw
-        }, mockResponse), BadRequestError);
+        }, mockResponse);
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as account is not activated");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Account is not activated/i,
+            "correct error message must be returned");
     });
 
     it("Should successfully login", async () => {
         const mockResponse = new MockResponse(),
-            jwtClient = JWT.getInstance();
+            jwtClient = JWT.getInstance(),
+            jsonResponse = await userController.login({
+                mail: "bestof1950@domain.tld",
+                password: "password"
+            }, mockResponse);
         let authorizationHeader,
             jwt: string,
             user;
 
-        await assert.isFulfilled(userController.login({
-            mail: "bestof1950@domain.tld",
-            password: "password"
-        }, mockResponse));
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.OK, "should send http-status 200");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isTrue(jsonResponse.success, "request must have succeeded");
+        assert.isUndefined(jsonResponse.error, "error message must not be returned");
         authorizationHeader = mockResponse.get(authHeaderName);
         assert.isDefined(authorizationHeader, `${authHeaderName}-header must be set in response`);
         assert.isString(authorizationHeader, `Value of ${authHeaderName} header must be of type string`);
@@ -288,27 +475,53 @@ describe("Logging into user account", () => {
 });
 
 describe("Requesting password-reset-token", () => {
-    it("Should throw as mail-address is empty", async () => {
-        return await assert.isRejected(userController.forgotPw({
-            mail: ""
-        }));
+    it("Should fail as mail-address is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.forgotPw({
+                mail: ""
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid mail-address/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as mail-address is unknown", async () => {
-        return await assert.isRejected(userController.forgotPw({
-            mail: "aaa@bbb.cc"
-        }));
+    it("Should fail as mail-address is unknown", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.forgotPw({
+                mail: "aaa@bbb.cc"
+            }, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as mail-address is unknown");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Mail-address is not in use/i,
+            "correct error message must be returned");
     });
 
     it("Should successfully return password-reset-token", async () => {
-        let pwResetToken: string;
+        const mockResponse = new MockResponse();
+        let jsonResponse,
+            pwResetToken: string;
 
         await createTestAccount();
-        pwResetToken = String(await userController.forgotPw({
+        jsonResponse = await userController.forgotPw({
             mail: validMail
-        }));
+        }, mockResponse);
 
+        assert.strictEqual(mockResponse.statusCode, HTTP_STATUS_CODE.OK, "should send http-status 200");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isTrue(jsonResponse.success, "request must succeed");
+        assert.isUndefined(jsonResponse.error, "error message must not be returned");
+        pwResetToken = jsonResponse.testExclusive;
         assert.isDefined("Password-reset-token must be defined");
+        assert.match(pwResetToken, uuidPattern, "password-reset-token must match UUID pattern");
         assert.isString(pwResetToken, "Password-reset-token must be of type string");
         assert.isNotEmpty(pwResetToken, "Password-reset-token must not be empty");
         return assert.match(pwResetToken, uuidPattern, "Password-reset-token must match UUID pattern");
@@ -321,80 +534,180 @@ describe("Requesting password-reset-token", () => {
 });
 
 describe("Resetting password", () => {
-    it("Should throw as password is empty", async () => {
-        return await assert.isRejected(userController.reset("", {password: ""}), BadRequestError);
+    it("Should fail as password is empty", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {password: ""}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least \d+ characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as minimum password length is not reached", async () => {
-        return await assert.isRejected(userController.reset("", {
-            password: "a".repeat(minPwLength - 1)
-        }), BadRequestError);
+    it("Should fail as minimum password length is not reached", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {
+                password: "a".repeat(minPwLength - 1)}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as minimum password length is not reached");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least \d+ characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains control characters", async () => {
-        return await assert.isRejected(userController.reset("", {password: "\n" + validPw}), BadRequestError);
+    it("Should fail as password contains control characters", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {
+                password: "\n" + validPw}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                        HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains control characters");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain control characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains leading whitespace", async () => {
-        return await assert.isRejected(userController.reset("", {password: " " + validPw}), BadRequestError);
+    it("Should fail as password contains leading whitespace", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {
+                password: " " + validPw}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains leading whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains trailing whitespace", async () => {
-        return await assert.isRejected(userController.reset("", {password: validPw + " "}), BadRequestError);
+    it("Should fail as password contains trailing whitespace", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {
+                password: validPw + " "}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains trailing whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password-reset-token has length 0", async () => {
-        return await assert.isRejected(userController.reset("", {password: validPw}), Error);
+    it("Should fail as password-reset-token has length 0", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("", {password: validPw}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password-reset token is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Invalid password-reset token/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password-reset-token is unknown", async () => {
-        return await assert.isRejected(userController.reset("00000000-0000-0000-0000-000000000000",
-            {password: validPw}), Error);
+    it("Should fail as password-reset-token is unknown", async () => {
+        const mockResponse = new MockResponse(),
+            jsonResponse = await userController.reset("00000000-0000-0000-0000-000000000000",
+                {password: validPw}, mockResponse);
+
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password-reset token is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Tokens are only valid for \d+ hours/i,
+            "correct error message must be returned");
     });
 
     it("Should reset password to new value", async () => {
-        const activationToken = await createTestAccount(),
-            mockResponse = new MockResponse(),
-            mockResponse2 = new MockResponse(),
+        const {jsonRes: jsonResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: activationToken} = jsonResponse,
+            activationMockResponse = new MockResponse(),
+            loginMockResponse = new MockResponse(),
+            loginMockResponse2 = new MockResponse(),
+            loginMockResponse3 = new MockResponse(),
+            forgotPwMockResponse = new MockResponse(),
+            pwResetMockResponse = new MockResponse(),
             newPw = "N3W_P455W0RD";
-        let authorizationHeader: string,
+        let activationJsonResponse,
+            loginJsonResponse,
+            loginJsonResponse2,
+            loginJsonResponse3,
+            forgotPwJsonResponse,
+            pwResetJsonResponse,
+            authorizationHeader: string,
             pwResetToken: string;
 
-        await assert.isFulfilled(userController.activate(activationToken));
-        // Login should succeed, as credentials are unaltered
-        await assert.isFulfilled(userController.login({
+        activationJsonResponse = await userController.activate(activationToken, activationMockResponse);
+        assert.isTrue(activationJsonResponse.success, "activation should be successful");
+        loginJsonResponse = await userController.login({
             mail: validMail,
             password: validPw
-        }, mockResponse));
-        authorizationHeader = mockResponse.get(authHeaderName);
+        }, loginMockResponse);
+        // Login should succeed, as credentials are unaltered
+        assert.isTrue(loginJsonResponse.success, "login with original credentials should succeed");
+        assert.strictEqual(loginMockResponse.statusCode,
+                        HTTP_STATUS_CODE.OK, "login-response for original credentials should return 200");
+        authorizationHeader = loginMockResponse.get(authHeaderName);
         assert.match(authorizationHeader, authHeaderValuePattern,
             `Value of ${authHeaderName} header must start with 'Bearer ' followed by base64url-encoded string`);
-        pwResetToken = <string> await userController.forgotPw({mail: validMail});
+        forgotPwJsonResponse = await userController.forgotPw({mail: validMail}, forgotPwMockResponse);
+        assert.isTrue(forgotPwJsonResponse.success, "should successfully return password-reset token");
+        pwResetToken = forgotPwJsonResponse.testExclusive;
         // Set new password
-        await assert.isFulfilled(userController.reset(pwResetToken, {
-            password: newPw
-        }));
+        pwResetJsonResponse = await userController.reset(pwResetToken, {password: newPw}, pwResetMockResponse);
+        assert.isTrue(pwResetJsonResponse.success, "password should be successfully changed");
         // Logging in with old credentials should fail
-        await assert.isRejected(userController.login({
+        loginJsonResponse2 = await userController.login({
             mail: validMail,
             password: validPw
-        }, new MockResponse()));
+        }, loginMockResponse2);
+        assert.isFalse(loginJsonResponse2.success, "login with old credentials should fail");
+        assert.strictEqual(loginMockResponse2.statusCode,
+                        HTTP_STATUS_CODE.UNAUTHORIZED, "login-response for old credentials should return 401");
         // Logging in with new credentials should pass
-        await assert.isFulfilled(userController.login({
+        loginJsonResponse3 = await userController.login({
             mail: validMail,
             password: newPw
-        }, mockResponse2));
-        authorizationHeader = mockResponse2.get(authHeaderName);
+        }, loginMockResponse3);
+        assert.isTrue(loginJsonResponse3.success, "login with new credentials should succeed");
+        assert.strictEqual(loginMockResponse3.statusCode,
+                        HTTP_STATUS_CODE.OK, "login-response for new credentials should return 200");
+        authorizationHeader = loginMockResponse3.get(authHeaderName);
         return assert.match(authorizationHeader, authHeaderValuePattern,
             `Value of ${authHeaderName} header must start with 'Bearer ' followed by base64url-encoded string`);
     });
 
-    it("Should throw as password-reset-token is expired", async () => {
-        let pwResetToken;
+    it("Should fail as password-reset-token is expired", async () => {
+        const forgotPwMockResponse = new MockResponse(),
+            activationMockResponse = new MockResponse();
+        let pwResetJsonResponse,
+            pwResetToken,
+            activationJsonResponse;
 
         await createTestAccount();
-        pwResetToken = await userController.forgotPw({mail: validMail});
-        return await assert.isRejected(userController.activate(<string> pwResetToken, 0));
+        pwResetJsonResponse = await userController.forgotPw({mail: validMail}, forgotPwMockResponse );
+        assert.isTrue(pwResetJsonResponse.success, "should successfully return passwort-reset token");
+        pwResetToken = pwResetJsonResponse.testExclusive;
+        activationJsonResponse = await userController.reset(<string> pwResetToken, {
+                password: "NEW_PASSWORD"
+            }, activationMockResponse, 0);
+        assert.isDefined(activationJsonResponse, "must return json as response");
+        assert.isFalse(activationJsonResponse.success, "should fail as password-reset token is expired");
+        assert.isString(activationJsonResponse.error, "error message must be returned");
+        return assert.match(String(activationJsonResponse.error), /Tokens are only valid for \d+ hours/i,
+            "correct error message must be returned");
     });
 
     // clean up after all test-cases --> remove created user-account from db
@@ -404,75 +717,151 @@ describe("Resetting password", () => {
 });
 
 describe("Changing password", () => {
-    it("Should throw as user is not logged in", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as user is not logged in", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse(),
+            jsonResponse = await userController.changePw(mockRequest, {
+                password: "N3W_P455W0RD"
+            }, mockResponse);
 
-        return await assert.isRejected(userController.changePw(mockRequest, {
-            password: "N3W_P455W0RD"
-        }), BadRequestError);
+        assert.strictEqual(mockResponse.statusCode,
+                HTTP_STATUS_CODE.UNAUTHORIZED, "should send http-status 401");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail user is not logged in");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /You are not logged in/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password is empty", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as password is empty", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         (<any> mockRequest).user = {id: -1};
-        return await assert.isRejected(userController.changePw(mockRequest, {password: ""}), BadRequestError);
+        jsonResponse = await userController.changePw(mockRequest, {password: ""}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password is empty");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least \d+ characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as minimum password length is not reached", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as minimum password length is not reached", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         (<any> mockRequest).user = {id: -1};
-        return await assert.isRejected(userController.changePw(mockRequest, {
-            password: "a".repeat(minPwLength - 1)
-        }), BadRequestError);
+        jsonResponse = await userController.changePw(mockRequest,
+                                                    {password: "a".repeat(minPwLength - 1)}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as minimum password length is not reached");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST contain at least \d+ characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains control characters", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as password contains control characters", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         (<any> mockRequest).user = {id: -1};
-        return await assert.isRejected(userController.changePw(mockRequest, {
-            password: "\n" + validPw
-        }), BadRequestError);
+        jsonResponse = await userController.changePw(mockRequest, {password: "\n" + validPw}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains control characters");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain control characters/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains leading whitespace", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as password contains leading whitespace", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         (<any> mockRequest).user = {id: -1};
-        return await assert.isRejected(userController.changePw(mockRequest, {
-            password: " " + validPw
-        }), BadRequestError);
+        jsonResponse = await userController.changePw(mockRequest, {password: " " + validPw}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains leading whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
     });
 
-    it("Should throw as password contains trailing whitespace", async () => {
-        const mockRequest = new MockRequest();
+    it("Should fail as password contains trailing whitespace", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse();
+        let jsonResponse;
 
         (<any> mockRequest).user = {id: -1};
-        return await assert.isRejected(userController.changePw(mockRequest, {
-            password: validPw + " "
-        }), BadRequestError);
+        jsonResponse = await userController.changePw(mockRequest, {password: validPw + " "}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                            HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains trailing whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Password MUST NOT contain leading or trailing whitespace/i,
+            "correct error message must be returned");
+    });
+
+    it("Should fail as user-id is unknown", async () => {
+        const mockRequest = new MockRequest(),
+            mockResponse = new MockResponse(),
+            newPw = "N3W_P455W0RD";
+        let jsonResponse;
+
+        (<any> mockRequest).user = {id: -1};
+        jsonResponse = await userController.changePw(mockRequest, {password: newPw}, mockResponse);
+        assert.strictEqual(mockResponse.statusCode,
+                              HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY, "should send http-status 422");
+        assert.isDefined(jsonResponse, "must return json as response");
+        assert.isFalse(jsonResponse.success, "must fail as password contains trailing whitespace");
+        assert.isString(jsonResponse.error, "error message must be returned");
+        return assert.match(String(jsonResponse.error), /Unknown user/i,
+             "correct error message must be returned");
     });
 
     it("Should change password to new value", async () => {
-        const activationToken = await createTestAccount(),
+        const {jsonRes: jsonResponse}: {jsonRes: JSONResponse} = await createTestAccount(),
+            {testExclusive: activationToken} = jsonResponse,
             jwtClient: JWT = JWT.getInstance(),
-            mockResponse = new MockResponse(),
-            mockResponse2 = new MockResponse(),
+            activationMockResponse = new MockResponse(),
+            loginMockResponse = new MockResponse(),
+            loginMockResponse2 = new MockResponse(),
+            loginMockResponse3 = new MockResponse(),
+            changeMockResponse = new MockResponse(),
             mockRequest = new MockRequest(),
             newPw = "N3W_P455W0RD";
-        let authorizationHeader: string,
+        let activationJsonResponse,
+            loginJsonResponse,
+            loginJsonResponse2,
+            loginJsonResponse3,
+            changeJsonResponse,
+            authorizationHeader: string,
             jwt: string,
             user;
 
-        await assert.isFulfilled(userController.activate(activationToken));
+        activationJsonResponse = await userController.activate(activationToken, activationMockResponse);
+        assert.isTrue(activationJsonResponse.success, "activation should be successful");
         // Login should succeed, as credentials are unaltered
-        await assert.isFulfilled(userController.login({
+        loginJsonResponse = await userController.login({
             mail: validMail,
             password: validPw
-        }, mockResponse));
-        authorizationHeader = mockResponse.get(authHeaderName);
+        }, loginMockResponse);
+        assert.isTrue(loginJsonResponse.success, "login with original credentials should succeed");
+        assert.strictEqual(loginMockResponse.statusCode,
+                            HTTP_STATUS_CODE.OK, "login-response for original credentials should return 200");
+        authorizationHeader = loginMockResponse.get(authHeaderName);
         assert.match(authorizationHeader, authHeaderValuePattern,
             `Value of ${authHeaderName} header must start with 'Bearer ' followed by base64url-encoded string`);
         // Extract token from authorization-header
@@ -480,20 +869,28 @@ describe("Changing password", () => {
         user = (await jwtClient.verify(jwt));
         // Change password
         mockRequest.user = user;
-        await assert.isFulfilled(userController.changePw(mockRequest, {
+        changeJsonResponse = await userController.changePw(mockRequest, {
             password: newPw
-        }));
+        }, changeMockResponse);
+        assert.isTrue(changeJsonResponse.success, "should successfully change password");
+        assert.strictEqual(changeMockResponse.statusCode, HTTP_STATUS_CODE.OK, "should respond with 200");
         // Logging in with old credentials should fail
-        await assert.isRejected(userController.login({
+        loginJsonResponse2 = await userController.login({
             mail: validMail,
             password: validPw
-        }, new MockResponse()));
+        }, loginMockResponse2);
+        assert.isFalse(loginJsonResponse2.success, "login with old credentials should fail");
+        assert.strictEqual(loginMockResponse2.statusCode,
+                            HTTP_STATUS_CODE.UNAUTHORIZED, "login-response for old credentials should return 401");
         // Logging in with new credentials should pass
-        await assert.isFulfilled(userController.login({
+        loginJsonResponse3 = await userController.login({
             mail: validMail,
             password: newPw
-        }, mockResponse2));
-        authorizationHeader = mockResponse2.get(authHeaderName);
+        }, loginMockResponse3);
+        assert.isTrue(loginJsonResponse3.success, "login with new credentials should succeed");
+        assert.strictEqual(loginMockResponse3.statusCode,
+                            HTTP_STATUS_CODE.OK, "login-response for new credentials should return 200");
+        authorizationHeader = loginMockResponse3.get(authHeaderName);
         return assert.match(authorizationHeader, authHeaderValuePattern,
             `Value of ${authHeaderName} header must start with 'Bearer ' followed by base64url-encoded string`);
     });
@@ -503,4 +900,3 @@ describe("Changing password", () => {
         return await userController.delete(validMail);
     });
 });
-

@@ -1,6 +1,5 @@
 "use strict";
 import {PGClientSingleton} from "../db/PGClientSingleton";
-import {QueryResult} from "pg";
 
 export type UUID = string;
 export type User = {
@@ -284,5 +283,21 @@ export class UserModel {
             {success} = firstResultRows;
 
         return success;
+    }
+
+    /**
+     * @description Checks if 'is_deleted'-flag of specified user is not set
+     * @param {number} userId Id of a user-record
+     * @returns {boolean} True if 'is_deleted'-flag of user is not set
+     */
+    public static async exists(userId: number): Promise<boolean> {
+        const sql = `SELECT is_deleted = 0::BOOLEAN AS exists
+                FROM "user"
+                WHERE id = $1
+            `,
+            [firstResultRows] = (await this.pgClient.query(sql, [userId])).rows,
+            exists = !!(firstResultRows && firstResultRows.exists);
+
+        return exists;
     }
 }
