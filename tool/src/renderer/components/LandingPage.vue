@@ -41,6 +41,21 @@
                 <div v-bind:title="path" class="is-clipped">
                     <div>{{ file.tags ? file.tags.title : path }}</div>
                     <div v-if="file.tags" class="is-size-7 has-text-grey" style="white-space: nowrap;">{{ path }}</div>
+                    <br>
+                    <table class="table is-bordered is-hoverable is-narrow">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(value, key) in file.tags">
+                                <td>{{ key }}</td>
+                                <td>{{ value }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </a>
             <div class="panel-block" v-if="Object.keys(files).length>0">

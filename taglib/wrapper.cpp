@@ -1,6 +1,11 @@
 #include <emscripten.h>
 #include <tag.h>
 #include <fileref.h>
+
+#include <mpegfile.h>
+#include <id3v2tag.h>
+#include <attachedpictureframe.h>
+
 #include <tiostream.h>
 
 using namespace std;
@@ -12,7 +17,10 @@ using namespace TagLib;
 class JsIOStream : public TagLib::IOStream {
     long pos = 0;
 public:
-    FileName name() const { return ""; }
+    FileName name() const {
+        /* TODO, this might be used for recognition, so pass it in properly e.g. through Module["io_filename"] */
+        return ".mp3";
+    }
     bool readOnly() const { return false; }
     bool isOpen() const { return true; }
 
@@ -33,7 +41,7 @@ public:
         EM_ASM_(({
             var buf = Module["io_buffer"];
             var bufs = [
-                buf.slice(0, $2), 
+                buf.slice(0, $2),
                 new Buffer(HEAPU8.subarray($0, $0 + $1)),
                 buf.slice($2 + $1),
             ];
@@ -103,7 +111,7 @@ public:
             return -1; \
         } \
     }); \
-    /* If there's a value available, wrap it in a ByteVector and call the callback */
+    /* If there's a value available, wrap it in a ByteVector and call the callback */ \
     if (len >= 0) { \
         vector<char> str(len); \
         EM_ASM_({ \
@@ -115,16 +123,56 @@ public:
 } while (0);
 
 /* ReadXY: Store a given <type> value in the JS tags object */
-#define READ_TAG_INT(f, attr, cb) EM_ASM_((Module["tags"][attr] = $0), cb);
-#define READ_TAG_STRING(f, attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0)), cb);
+#define READ_TAG_INT(attr, cb) EM_ASM_((Module["tags"]attr = $0), cb);
+#define READ_TAG_STRING(attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0)), cb);
 
 int main(int argc, char *argv[])
 {
     TagLib::FileRef f(new JsIOStream());
     int modeRead = EM_ASM_INT(return !Module["tags"]);
 
+    /* transmutes a given input pointer & length into the respective nodejs buffer */
+    EM_ASM((Module["Pointer_bufferify"] = function(data, len) { return new Buffer(HEAPU8.subarray(data, data + len)); }));
+
+    // perform a read (if no tags are set)
+    if (modeRead) {
+        EM_ASM((Module["tags"] = {}));
+        READ_TAG_STRING("title", f.tag()->title().toCString());
+        READ_TAG_STRING("artist", f.tag()->artist().toCString());
+        READ_TAG_STRING("album", f.tag()->album().toCString());
+        READ_TAG_STRING("comment", f.tag()->comment().toCString());
+        READ_TAG_STRING("genre", f.tag()->genre().toCString());
+        READ_TAG_INT(["year"], f.tag()->year());
+        READ_TAG_INT(["track"], f.tag()->track());
+
+        if (auto file = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
+            if (auto tag = file->ID3v2Tag()) {
+                EM_ASM((Module["tags"]["id3"] = {}));
+                auto list = tag->frameList();
+                for (auto i = list.begin(); i != list.end(); ++i) {
+                    cout << "FRAME " << (*i)->frameID() << " " << (*i)->toString() << "\n";
+
+                    if (auto frame = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(*i)) {
+                        cout << "ATTACHED PICTURE " << frame << "\n";
+                        EM_ASM_(((Module["tags"]["id3"]["attachedPicture"] = (Module["tags"]["id3"]["attachedPicture"] || [])).push({
+                                type: $0,
+                                mime: Pointer_stringify($1),
+                                descr: Pointer_stringify($2),
+                                data: Module["Pointer_bufferify"]($3, $4),
+                            })),
+                            frame->type(),
+                            frame->mimeType().toCString(),
+                            frame->description().toCString(),
+                            frame->picture().data(),
+                            frame->picture().size()
+                        );
+                    }
+                }
+            }
+        }
+    }
     // ... or a write, if some tags are given
-    if (!modeRead) {
+    else {
         WRITE_TAG_STRING(f, "title", f.tag()->setTitle(vec));
         WRITE_TAG_STRING(f, "artist", f.tag()->setArtist(vec));
         WRITE_TAG_STRING(f, "album", f.tag()->setAlbum(vec));
@@ -132,17 +180,11 @@ int main(int argc, char *argv[])
         WRITE_TAG_STRING(f, "genre", f.tag()->setGenre(vec));
         WRITE_TAG_INT(f, "year", f.tag()->setYear(val));
         WRITE_TAG_INT(f, "track", f.tag()->setTrack(val));
-    }
-    // or perform a read (if no tags are set)
-    else {
-        EM_ASM((Module["tags"] = {}));
-        READ_TAG_STRING(f, "title", f.tag()->title().toCString());
-        READ_TAG_STRING(f, "artist", f.tag()->artist().toCString());
-        READ_TAG_STRING(f, "album", f.tag()->album().toCString());
-        READ_TAG_STRING(f, "comment", f.tag()->comment().toCString());
-        READ_TAG_STRING(f, "genre", f.tag()->genre().toCString());
-        READ_TAG_INT(f, "year", f.tag()->year());
-        READ_TAG_INT(f, "track", f.tag()->track());
+        // TODO:
+        EM_ASM({
+            if (Module["tags"]["id3"] && Module["tags"]["id3"]["attachedPicture"])
+                throw "attachedPicture write not implemented yet";
+        });
     }
     f.save();
 }
