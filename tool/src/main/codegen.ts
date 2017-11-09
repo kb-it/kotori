@@ -111,7 +111,7 @@ export function metaData(filePath: string, tags: FileTags | null, cb: (tags: Fil
         tags: tags,
         onExit: function(code: number) {
             if (code == 0) {
-                if (this.tags) {
+                if (tags) {
                     // TODO: maybe backup the file
                     fs.writeFileSync(filePath, this.io_buffer);
                 }
