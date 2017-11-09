@@ -73,7 +73,7 @@
     import {remote} from 'electron';
 
     import {handleHttpError} from '../util'
-    import {File} from '../store/modules/files'
+    import {File} from '../store/modules/app'
     import {http} from '../config'
 
     const dialog = remote.dialog;
@@ -134,9 +134,9 @@
         sync() {
             this.pendingSync = true;
             let requestedTracks = Object.values(this.files);
-            let fpToTrack = Object.assign(...requestedTracks.map((obj, i) => ({[obj.fp]: obj})));
+            let fpToTrack = Object.assign({}, ...requestedTracks.map((obj, i) => ({[obj.fp]: obj})));
 
-            let unwatch;
+            let unwatch: () => void;
             let startSync = () => {
                 unwatch();
                 http.post("v1/tracks/query", requestedTracks.map((file) => ({fingerprint: file.fp})))
@@ -152,7 +152,7 @@
                         handleHttpError("Request failed", err);
                     })
             };
-            let checkReady = (state) => !Object.values(state.app.files).some((file) => file.fp == null);
+            let checkReady = (state: any) => !Object.values(state.app.files).some((file) => file.fp == null);
             unwatch = this.$store.watch(
                 checkReady,
                 (ready) => {if (ready) startSync()},

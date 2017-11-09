@@ -5,7 +5,7 @@ declare var WebAssembly: any;
 declare var __static: any;
 
 import {ipcMain} from 'electron';
-import {FileTags} from '../renderer/store/modules/files'
+import {FileTags} from '../renderer/store/modules/app'
 
 var fs = require("fs");
 var util = require("util");
@@ -121,7 +121,7 @@ export function metaData(filePath: string, tags: FileTags | null, cb: (tags: Fil
         print: (output: string) => {
             console.log("metaDataOut: ", output);
         },
-        printErr: (e: any) => console.log("metaData/An error occurred"),
+        printErr: (e: any) => console.log("metaData/An error occurred: ", e),
         quit: (status: any, err: any) => { console.log("metaData/quit"); }
     });
 }

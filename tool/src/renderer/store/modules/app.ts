@@ -2,7 +2,7 @@ import Vue from 'vue'
 import * as Vuex from 'vuex'
 import {ipcRenderer} from 'electron';
 
-interface AppState {
+export interface AppState {
     files: {[path:string]: File},
     user: string | null,
 }
