@@ -22,7 +22,7 @@ export class MailerSingleton {
      * @returns {Promise<SentMessageInfo>}
      */
     public async send(mailOptions: nodemailer.SendMailOptions): Promise<SentMessageInfo> {
-        let sentMessageInfo = await this.transporter.sendMail(mailOptions);
+        const sentMessageInfo = await this.transporter.sendMail(mailOptions);
 
         console.log("sentMessageInfo:", sentMessageInfo);
         return sentMessageInfo;

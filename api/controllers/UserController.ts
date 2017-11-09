@@ -120,9 +120,9 @@ export class UserController {
             // Return activationToken in testmode for being able to test functionality in unit-tests
             if (AppConfig.APP_TESTMODE_ENABLED) {
                 jsonResponse.testExclusive = activationToken;
-                AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
+                await AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
             } else {
-                AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
+                await AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
             }
         } else {
             response.status(HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY);
