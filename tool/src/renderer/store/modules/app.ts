@@ -17,11 +17,20 @@ export interface FileTags {
     track: string,
 }
 
+export interface RemoteId {
+    id: number,
+    remote: boolean,
+}
+
 export interface File {
+    path: string,
     active: boolean,
     error?: string,
     fp?: number[]
     tags?: FileTags,
+    tracks?: any[],
+    // the index of the selected remote track
+    remote?: RemoteId,
 }
 
 const state: AppState = {
@@ -31,7 +40,7 @@ const state: AppState = {
 
 const mutations = {
     ADD_FILE(state: AppState, {path, file}: {path:string, file:File}) {
-        Vue.set(state.files, path, file);
+        Vue.set(state.files, path, Object.assign({path}, file));
     },
     UPDATE_FILE(state: AppState, {path, changes}: {path: string, changes:File}) {
         if (!state.files[path]) return;
@@ -41,13 +50,13 @@ const mutations = {
         Vue.set(state, "files", files);
     },
     SET_USER(state: AppState, user: string) {
-            state.user = user;
+        state.user = user;
     }
 }
 
 const actions = {
     addFile({ commit }: Vuex.Store<AppState>, path:string) {
-        var file = {active: false, error: undefined, fp: undefined};
+        var file = {active: false, error: undefined, fp: undefined, remote: {}};
         // get a fingerprint & meta info from codegen in the background,
         // this goes renderer --> main --> fork and back through 2 layers of IPC
         let cb: any;

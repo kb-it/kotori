@@ -30,7 +30,7 @@
                     Sync Preview
                 </button>
             </p>
-            <a v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(path)"
+            <a v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(file)"
                 class="panel-block">
                 <span class="panel-icon">
                     <i v-if="file.error!=null" class="fa fa-exclamation-triangle"></i>
@@ -52,9 +52,10 @@
                             </tr>
                             <tr>
                                 <th class="has-text-centered">Tag</th>
-                                <th class="has-text-centered">Value</th>
+                                <th class="has-text-centered">Value {{file.remote}}</th>
                                 <th v-if="file.tracks" class="has-text-centered">
-                                    <select class="select is-fullwidth">
+                                    <select class="select is-fullwidth" v-bind:value="file.remote.id"
+                                        @change="changeRemoteTrack(file, $event.target.value)">
                                         <option disabled selected="selected">Choose track</option>
                                         <option value="-1">New track version</option>
                                         <option disabled>──────────</option>
@@ -64,10 +65,11 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(value, key) in file.tags" v-if="typeof value != 'object'">
+                            <tr v-for="(value, key) in getZippedTags(file)"
+                                v-if="typeof value.local != 'object'">
                                 <td>{{ key }}</td>
-                                <td><input v-bind:value="value" type="text" class="input"></input></td>
-                                <td v-if="file.tracks">[DUMMY]</input></td>
+                                <td><input v-bind:value="value.local" type="text" class="input"></input></td>
+                                <td v-if="file.tracks">{{ value.remote }}</input></td>
                             </tr>
                         </tbody>
                     </table>
@@ -115,14 +117,36 @@
             document.removeEventListener("drop", this.onDrop);
         }
 
+        // zip the local file and remote file for a given file into one object (grouped by tags)
+        // e.g. {tag: {local: "local", remote: "remote"}, ...} from a given File
+        getZippedTags(file: File) {
+            if (!file.tags) return {};
+            let zippedArr = Object.keys(file.tags).map((key) => (
+                {tag: key, local: file.tags[key], remote: (file.tracks||{})[file.remote]}
+            ));
+            return Object.assign({}, ...zippedArr.map(({tag, local, remote}) => ({[tag]: {local, remote}})));
+        }
+
+        changeRemoteTrack(file: File, givenRemote: number) {
+            if (givenRemote < 0) {
+                let newRemote = file.tracks.length;
+                let newTracks = file.tracks.concat([{}]);
+                let remote = {id: newRemote, remote: true};
+                this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tracks: newTracks, remote}});
+            } else {
+                let remote = {id: givenRemote, remote: false};
+                this.$store.commit("UPDATE_FILE", {path: file.path, changes: {remote}});
+            }
+        }
+
         // keep all unselected items (=> throw away selected ones)
         deleteSelectedItems() {
             this.$store.dispatch("retainFiles", (file:File) => !file.active);
         }
 
-        selectFile(path:string) {
-            let changes = {active: !this.files[path].active};
-            this.$store.commit("UPDATE_FILE", {path, changes});
+        selectFile(file: File) {
+            let changes = {active: !file.active};
+            this.$store.commit("UPDATE_FILE", {path: file.path, changes});
         }
 
         doAddFile(path: string) {
