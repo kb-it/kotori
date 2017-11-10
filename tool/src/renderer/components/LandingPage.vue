@@ -38,21 +38,36 @@
                     <i v-else class="fa fa-cog fa-spin fa-3x fa-fw"></i>
                 </span>
 
-                <div v-bind:title="path" class="is-clipped">
+                <div v-bind:title="path" class="is-clipped" style="width: 98%;">
                     <div>{{ file.tags ? file.tags.title : path }}</div>
                     <div v-if="file.tags" class="is-size-7 has-text-grey" style="white-space: nowrap;">{{ path }}</div>
                     <br>
-                    <table class="table is-bordered is-hoverable is-narrow">
+                    <table class="table is-bordered is-hoverable is-narrow is-fullwidth" v-if="file.tags">
                         <thead>
                             <tr>
-                                <th>Tag</th>
-                                <th>Value</th>
+                                <th colspan="2" class="has-text-centered">Local</th>
+                                <th v-if="file.tracks" colspan="2" class="has-text-centered">
+                                    Remote Value
+                                </th>
+                            </tr>
+                            <tr>
+                                <th class="has-text-centered">Tag</th>
+                                <th class="has-text-centered">Value</th>
+                                <th v-if="file.tracks" class="has-text-centered">
+                                    <select class="select is-fullwidth">
+                                        <option disabled selected="selected">Choose track</option>
+                                        <option value="-1">New track version</option>
+                                        <option disabled>──────────</option>
+                                        <option v-for="(track, id) of file.tracks" v-bind:value="id">{{ track }}</option>
+                                    </select>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="(value, key) in file.tags">
+                            <tr v-for="(value, key) in file.tags" v-if="typeof value != 'object'">
                                 <td>{{ key }}</td>
-                                <td>{{ value }}</td>
+                                <td><input v-bind:value="value" type="text" class="input"></input></td>
+                                <td v-if="file.tracks">[DUMMY]</input></td>
                             </tr>
                         </tbody>
                     </table>
