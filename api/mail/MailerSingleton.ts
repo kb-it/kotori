@@ -1,7 +1,7 @@
 "use strict";
 import * as nodemailer from "nodemailer";
-import {SentMessageInfo} from "nodemailer";
-export {SentMessageInfo};
+import {SentMessageInfo, SendMailOptions} from "nodemailer";
+export {SentMessageInfo, SendMailOptions};
 
 export class MailerSingleton {
     private static mailerSingleton: MailerSingleton;
