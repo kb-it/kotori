@@ -31,7 +31,7 @@ public:
             var len = Math.min($1, buf.length - $2);
             HEAPU8.set(buf.subarray($2, $2 + len), $0);
             return len;
-        }, ret.data(), ret.size(), this->pos);
+        }, ret.data(), length, this->pos);
         ret.setData(ret.data(), length);
         this->pos += length;
         return ret;
@@ -72,7 +72,7 @@ public:
     }
 
     long length() {
-        return EM_ASM_INT(Module["io_buffer"].length);
+        return EM_ASM_INT(return Module["io_buffer"].length);
     }
 
     void truncate(long length) {
@@ -87,7 +87,7 @@ public:
         } else if (p == Current) {
             this->pos += offset;
         } else if (p == End) {
-            this->pos -= offset;
+            this->pos = this->length() + offset;
         } else {
             throw std::invalid_argument("position: not supported seek point");
         }
@@ -95,15 +95,16 @@ public:
 };
 
 /* WriteXY: Fetch a given <type> value from JS and serialize it to the given input buffer */
-#define WRITE_TAG_INT(f, attr, cb) do { \
-    int val = EM_ASM_INT(return Module["tags"][attr]); \
+#define WRITE_TAG_INT(attr, cb) do { \
+    int val = EM_ASM_INT(return Module["tags"][attr]||0); \
     cb; \
 } while(0);
 
-#define WRITE_TAG_STRING(f, attr, cb) do { \
+#define WRITE_TAG_STRING(attr, cb) do { \
     /* First fetch the length, so we know how much to allocate on the heap */ \
     int len = EM_ASM_INT({ \
         if (Module["tags"].hasOwnProperty(attr)) { \
+            if (Module["tags"][attr] === null) return 0; \
             var buf = new Buffer(Module["tags"][attr]); \
             Module["tags"][attr] = buf; \
             return buf.length; \
@@ -113,18 +114,21 @@ public:
     }); \
     /* If there's a value available, wrap it in a ByteVector and call the callback */ \
     if (len >= 0) { \
-        vector<char> str(len); \
-        EM_ASM_({ \
-            HEAPU8.set(Module["tags"][attr], $0); \
-        }, str.data()); \
-        auto vec = ByteVector(str.data(), len); \
+        auto vec = ByteVector::null; \
+        if (len > 0) { \
+            vector<char> str(len); \
+            EM_ASM_({ \
+                HEAPU8.set(Module["tags"][attr], $0); \
+            }, str.data()); \
+            vec = ByteVector(str.data(), len); \
+        } \
         cb; \
     } \
 } while (0);
 
 /* ReadXY: Store a given <type> value in the JS tags object */
-#define READ_TAG_INT(attr, cb) EM_ASM_((Module["tags"]attr = $0), cb);
-#define READ_TAG_STRING(attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0)), cb);
+#define READ_TAG_INT(attr, cb) EM_ASM_((Module["tags"]attr = $0 || Module["tags"]attr), cb);
+#define READ_TAG_STRING(attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0) || Module["tags"][attr]), cb);
 
 int main(int argc, char *argv[])
 {
@@ -137,24 +141,25 @@ int main(int argc, char *argv[])
     // perform a read (if no tags are set)
     if (modeRead) {
         EM_ASM((Module["tags"] = {}));
-        READ_TAG_STRING("title", f.tag()->title().toCString());
-        READ_TAG_STRING("artist", f.tag()->artist().toCString());
-        READ_TAG_STRING("album", f.tag()->album().toCString());
-        READ_TAG_STRING("comment", f.tag()->comment().toCString());
-        READ_TAG_STRING("genre", f.tag()->genre().toCString());
-        READ_TAG_INT(["year"], f.tag()->year());
-        READ_TAG_INT(["track"], f.tag()->track());
 
         if (auto file = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
             if (auto tag = file->ID3v2Tag()) {
-                EM_ASM((Module["tags"]["id3"] = {}));
+                EM_ASM((Module["tags"]["id3v2"] = {}));
+                READ_TAG_STRING("title", tag->title().toCString());
+                READ_TAG_STRING("artist", tag->artist().toCString());
+                READ_TAG_STRING("album", tag->album().toCString());
+                READ_TAG_STRING("comment", tag->comment().toCString());
+                READ_TAG_STRING("genre", tag->genre().toCString());
+                READ_TAG_INT(["year"], tag->year());
+                READ_TAG_INT(["track"], tag->track());
+
                 auto list = tag->frameList();
                 for (auto i = list.begin(); i != list.end(); ++i) {
                     cout << "FRAME " << (*i)->frameID() << " " << (*i)->toString() << "\n";
 
                     if (auto frame = dynamic_cast<TagLib::ID3v2::AttachedPictureFrame *>(*i)) {
                         cout << "ATTACHED PICTURE " << frame << "\n";
-                        EM_ASM_(((Module["tags"]["id3"]["attachedPicture"] = (Module["tags"]["id3"]["attachedPicture"] || [])).push({
+                        EM_ASM_(((Module["tags"]["id3v2"]["attachedPicture"] = (Module["tags"]["id3v2"]["attachedPicture"] || [])).push({
                                 type: $0,
                                 mime: Pointer_stringify($1),
                                 descr: Pointer_stringify($2),
@@ -173,18 +178,19 @@ int main(int argc, char *argv[])
     }
     // ... or a write, if some tags are given
     else {
-        WRITE_TAG_STRING(f, "title", f.tag()->setTitle(vec));
-        WRITE_TAG_STRING(f, "artist", f.tag()->setArtist(vec));
-        WRITE_TAG_STRING(f, "album", f.tag()->setAlbum(vec));
-        WRITE_TAG_STRING(f, "comment", f.tag()->setComment(vec));
-        WRITE_TAG_STRING(f, "genre", f.tag()->setGenre(vec));
-        WRITE_TAG_INT(f, "year", f.tag()->setYear(val));
-        WRITE_TAG_INT(f, "track", f.tag()->setTrack(val));
+        WRITE_TAG_STRING("title", f.tag()->setTitle(vec));
+        WRITE_TAG_STRING("artist", f.tag()->setArtist(vec));
+        WRITE_TAG_STRING("album", f.tag()->setAlbum(vec));
+        WRITE_TAG_STRING("comment", f.tag()->setComment(vec));
+        WRITE_TAG_STRING("genre", f.tag()->setGenre(vec));
+        WRITE_TAG_INT("year", f.tag()->setYear(val));
+        WRITE_TAG_INT("track", f.tag()->setTrack(val));
+
         // TODO:
         EM_ASM({
-            if (Module["tags"]["id3"] && Module["tags"]["id3"]["attachedPicture"])
+            if (Module["tags"]["id3v2"] && Module["tags"]["id3v2"]["attachedPicture"])
                 throw "attachedPicture write not implemented yet";
         });
+        f.save();
     }
-    f.save();
 }
