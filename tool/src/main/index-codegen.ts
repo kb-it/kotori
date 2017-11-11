@@ -7,12 +7,18 @@ if (!codegen.init(false)) {
     process.exit(-1);
 }
 
-codegen.getFingerprint(process.argv[2], (codes, err) => {
-    if (err != null) {
+function handleError(err: any) {
+    if (err) {
         process.send!({error: err});
         process.exit(-2);
-    } else {
-        process.send!({codes: codes});
     }
-    process.exit(0);
+}
+
+codegen.getFingerprint(process.argv[2], (codes, err) => {
+    handleError(err);
+    codegen.metaData(process.argv[2], null, (tags, err) => {
+        handleError(err);
+        process.send!({ codes, tags });
+        process.exit(0);
+    });
 });
