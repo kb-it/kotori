@@ -38,14 +38,23 @@ export function init(isMain: boolean) {
 
 // register an asynchronous IPC interface we'll use for communication with renderer
 function registerEventHandler() {
+    var dir = path.dirname(process.argv.find((val) => val.endsWith(".js")));
     ipcMain.on("get-track", (event: any, filePath: string) => {
-        var dir = path.dirname(process.argv.find((val) => val.endsWith(".js")));
         var forked = child_process.fork(path.join(dir, "index-codegen.js"), [filePath]);
         forked.on("message", (msg: any) => {
             // pass the message along to the renderer
             event.sender.send("get-track-result", filePath, msg);
         });
         forked.on("error", (err: any) => console.error("child err ", err));
+    });
+
+    ipcMain.on("write-tags", (event: any, filePath: string, meta: FileTags) => {
+        var forked = child_process.fork(path.join(dir, "index-codegen.js"), ["--write", filePath]);
+        forked.on("message", (msg: any) => {
+            event.sender.send("write-tags-result", filePath, msg);
+        });
+        forked.on("error", (err: any) => console.error("child err ", err));
+        forked.send(meta);
     });
 }
 
@@ -76,9 +85,10 @@ export function getFingerprint(filePath: string, cb: FpCallback | null) {
                 // we stick to that for now.
                 codes = [];
                 // we skip the offsets, as spotify doesn't seem to use them anymore
+                // echoprint-codegen generates ASCII-Hex numbers which are zlib compressed
                 // https://github.com/spotify/echoprint-server/blob/f9e9b157044ff1b838114c395b83c4187cf6b729/echoprint_server/lib.py
                 for (var i = buf.length / 2; i < buf.length; i += 5) {
-                    var elem = parseInt("" + buf.subarray(i, i + 5), 16);
+                    var elem = parseInt(buf.toString("ascii", i, i + 5), 16);
                     codes.push(elem);
                 }
                 codes.sort(function (a, b) { return a - b; });
@@ -112,7 +122,8 @@ export function metaData(filePath: string, tags: FileTags | null, cb: (tags: Fil
         onExit: function(code: number) {
             if (code == 0) {
                 if (tags) {
-                    // TODO: maybe backup the file
+                    // create a backup, TODO: make configurable?
+                    fs.writeFileSync(filePath + ".bak", buffer);
                     fs.writeFileSync(filePath, this.io_buffer);
                 }
                 cb(this.tags, null);
