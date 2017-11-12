@@ -12,7 +12,7 @@
                         </h1>
                         <h1 v-else class="title vcenter">
                             <router-link to="/login" tag="button" class="button is-link is-large is-fullwidth vcenter">
-                                Sign In
+                                Sign In to Synchronize
                             </router-link>
                         </h1>
                         <button @click="addFileThroughDialog()" class="button is-primary is-fullwidth">
@@ -22,21 +22,26 @@
                 </div>
             </section>
 
-            <p class="panel-heading sync-preview-header">
+            <div class="panel-heading sync-preview-header">
                 <span class="vcenter">Selected Files</span>
-                <button class="button is-primary vcenter"
-                    v-if="!supportedTags"
-                    v-bind:class="{'is-loading': pendingSync}" @click="syncPreview()"
-                    v-bind:disabled="!currentUser || !Object.keys(files).length">
-                    Sync Preview
-                </button>
-                <button class="button is-primary vcenter"
-                    v-else
-                    v-bind:class="{'is-loading': pendingSync}" @click="sync()"
-                    v-bind:disabled="!currentUser || !Object.keys(files).length">
-                    Sync
-                </button>
-            </p>
+                <div>
+                    <button class="button is-primary vcenter"
+                        v-if="Object.keys(files).length"
+                        v-bind:class="{'is-loading': pendingSync}" @click="sync(currentUser && supportedTags)">
+                        {{ supportedTags && currentUser ? "Sync" : "Save" }}
+                    </button>
+                    <button class="button is-danger vcenter"
+                        v-if="Object.keys(files).length && Object.values(files).some((f) => JSON.stringify(f.tags) != JSON.stringify(f.lastTags))"
+                        v-bind:class="{'is-loading': pendingSync}" @click="revertChanges()">
+                        Revert Changes
+                    </button>
+                    <button class="button is-primary vcenter"
+                        v-if="Object.keys(files).length && currentUser && !supportedTags"
+                        v-bind:class="{'is-loading': pendingSync}" @click="syncPreview()">
+                        Sync Preview
+                    </button>
+                </div>
+            </div>
             <a v-for="(file, path) in files" v-bind:class="{'is-active': file.active, 'is-danger': file.error != null}" @click="selectFile(file)"
                 class="panel-block">
                 <span class="panel-icon">
@@ -76,7 +81,7 @@
                             <tr v-for="(value, key) in getZippedTags(file)"
                                 v-if="typeof value.local != 'object' || value.local == null">
                                 <td>{{ key }}</td>
-                                <td><input v-bind:value="value.local" type="text" class="input"></input></td>
+                                <td><input v-bind:value="value.local" type="text" class="input" @input="setTagValue(file, key, $event.target.value)"></input></td>
                                 <td v-if="file.tracks && file.remote > -1">
                                     <p class="field" style="white-space: nowrap;">
                                         <a class="button" @click="file.tags[key] = value.remote||null;">
@@ -140,6 +145,11 @@
             document.removeEventListener("drop", this.onDrop);
         }
 
+        setTagValue(file: File, key: string, value: string) {
+            let tags = Object.assign({},  file.tags, {[key]: value});
+            this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tags}});
+        }
+
         // zip the local file and remote file for a given file into one object (grouped by tags)
         // e.g. {tag: {local: "local", remote: "remote"}, ...} from a given File
         getZippedTags(file: File) {
@@ -156,7 +166,7 @@
             if (givenRemote < 0) {
                 let newRemote = file.tracks.length;
                 let newTracks = file.tracks.concat([{}]),
-                    lastTracks = file.tracks.concat([{}]);
+                    lastTracks = file.lastTracks.concat([{}]);
                 this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tracks: newTracks, lastTracks, remote: newRemote}});
                 Vue.nextTick(() => element.value = newRemote);
             } else {
@@ -233,7 +243,7 @@
         }
 
         // Perform the synchronisation the user picked
-        sync() {
+        sync(syncRemote: boolean) {
             this.pendingSync = true;
             let newTracks = [],
                 updateTracks = [];
@@ -244,19 +254,21 @@
             );
 
             // Build a list of tracks to update on the server
-            for (let file of Object.values(this.files)) {
-                if (file.remote > -1) {
-                    console.log(this.supportedTags);
-                    let track = file.tracks[file.remote];
-                    let tags = onlyTags(track);
-                    // make sure something actually changed since the last time
-                    if (!Object.keys(tags).some((key) => track[key] != file.lastTracks[file.remote][key])) {
-                        continue;
-                    }
-                    if (!track.trackId) {
-                        newTracks.push({fingerprint: file.fp, tags});
-                    } else {
-                        updateTracks.push({trackId: track.trackId, tags});
+            if (syncRemote) {
+                for (let file of Object.values(this.files)) {
+                    if (file.remote > -1) {
+                        console.log(this.supportedTags);
+                        let track = file.tracks[file.remote];
+                        let tags = onlyTags(track);
+                        // make sure something actually changed since the last time
+                        if (!Object.keys(tags).some((key) => track[key] != file.lastTracks[file.remote][key])) {
+                            continue;
+                        }
+                        if (!track.trackId) {
+                            newTracks.push({fingerprint: file.fp, tags});
+                        } else {
+                            updateTracks.push({trackId: track.trackId, tags});
+                        }
                     }
                 }
             }
@@ -271,19 +283,34 @@
             }
             Promise.all(promises)
                 .then((responses) => {
-                    this.pendingSync = false;
                     console.log("sync responses", responses);
 
                     // write local changes into the files
+                    let writes = [];
                     for (let file of Object.values(this.files)) {
                         console.log(file, Object.keys(file.tags));
-                        if (Object.keys(file.tags).some((key) => file.tags[key] != file.lastTags[key])) {
+                        if (JSON.stringify(file.tags) != JSON.stringify(file.lastTags)) {
                             console.log("locally updating ", file);
-                            this.$store.dispatch("updateFileTags", {file, meta: file.tags});
+                            writes.push(this.$store.dispatch("updateFileTags", {file, meta: file.tags}));
                         }
                     }
+                    // wait until local files are updated
+                    Promise.all(writes)
+                        .then(() => this.pendingSync = false)
+                        .catch((err) => handleHttpError("Writing to files failed ", err));
                 })
                 .catch((err) => handleHttpError("Remote Sync failed", err))
+        }
+
+        revertChanges() {
+            // abort the current synchronizations
+            for (let file of Object.values(this.files)) {
+                // revert local changes too
+                let tags = JSON.parse(JSON.stringify(file.lastTags));
+                let changes = {remote: -1, tracks: undefined, lastTracks: undefined, tags};
+                this.$store.commit("UPDATE_FILE", {path: file.path, changes});
+            }
+            this.supportedTags = null;
         }
     }
 </script>

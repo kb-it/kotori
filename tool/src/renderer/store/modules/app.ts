@@ -42,7 +42,7 @@ const mutations = {
     },
     UPDATE_FILE(state: AppState, {path, changes}: {path: string, changes:File}) {
         if (!state.files[path]) return;
-        Object.assign(state.files[path], changes);
+        state.files[path] = Object.assign({}, state.files[path], changes);
     },
     SET_FILES(state: AppState, files: AppState) {
         Vue.set(state, "files", files);
@@ -65,7 +65,7 @@ const actions = {
             let tags = !msg.error && msg.tags ? msg.tags : undefined;
             let changes = {
                 tags,
-                lastTags: tags ? Object.assign({}, tags) : undefined,
+                lastTags: tags ? JSON.parse(JSON.stringify(tags)) : undefined,
                 error: msg.error,
                 fp: !msg.error && msg.codes ? msg.codes : undefined,
             };
@@ -75,18 +75,29 @@ const actions = {
         ipcRenderer.send("get-track", path);
         commit('ADD_FILE', file);
     },
-    updateFileTags({ commit }: Vuex.Store<AppState>, {file, meta}: {file: File, meta: FileTags}) {
-        let cb: any;
-        cb = (event: any, fileName: string, msg: any) => {
-            if (fileName != file.path) return;
-            ipcRenderer.removeListener("write-tags-result", cb);
-            let lastTracks = [...file.lastTracks!];
-            lastTracks[file.remote!] = Object.assign({}, file.tracks![file.remote!]);
-            let changes = {error: msg.error, lastTracks};
-            commit('UPDATE_FILE', {path: file.path, changes});
-        };
-        ipcRenderer.on("write-tags-result", cb);
-        ipcRenderer.send("write-tags", file.path, meta);
+    updateFileTags({ commit }: Vuex.Store<AppState>, {file, meta}: {file: File, meta: FileTags}): Promise<void> {
+        return new Promise((resolve, reject) => {
+            let cb: any;
+            cb = (event: any, fileName: string, msg: any) => {
+                if (fileName != file.path) return;
+                ipcRenderer.removeListener("write-tags-result", cb);
+                let lastTags = JSON.parse(JSON.stringify(meta));
+                let changes: any = { error: msg.error };
+                if (!msg.error) {
+                    changes.tags = meta;
+                    changes.lastTags = lastTags;
+                    if (file.tracks && file.lastTracks) {
+                        let lastTracks = [...file.lastTracks!];
+                        lastTracks[file.remote!] = JSON.parse(JSON.stringify(file.tracks![file.remote!]));
+                        changes.lastTracks = lastTracks;
+                    }
+                }
+                commit('UPDATE_FILE', {path: file.path, changes});
+                if (msg.error) reject(msg.error); else resolve();
+            };
+            ipcRenderer.on("write-tags-result", cb);
+            ipcRenderer.send("write-tags", file.path, meta);
+        });
     },
     retainFiles({ commit, state }: Vuex.Store<AppState>, closure: (file:File) => boolean) {
         var newState = Object.assign({}, state.files);
