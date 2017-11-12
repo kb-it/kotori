@@ -127,8 +127,8 @@ public:
 } while (0);
 
 /* ReadXY: Store a given <type> value in the JS tags object */
-#define READ_TAG_INT(attr, cb) EM_ASM_((Module["tags"]attr = $0 || Module["tags"]attr), cb);
-#define READ_TAG_STRING(attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0) || Module["tags"][attr]), cb);
+#define READ_TAG_INT(attr, cb) EM_ASM_((Module["tags"]attr = Module["tags"]attr || $0), cb);
+#define READ_TAG_STRING(attr, cb) EM_ASM_((Module["tags"][attr] = Pointer_stringify($0) || Module["tags"][attr] || null), cb);
 
 int main(int argc, char *argv[])
 {
@@ -142,16 +142,17 @@ int main(int argc, char *argv[])
     if (modeRead) {
         EM_ASM((Module["tags"] = {}));
 
+        READ_TAG_STRING("title", f.tag()->title().toCString());
+        READ_TAG_STRING("artist", f.tag()->artist().toCString());
+        READ_TAG_STRING("album", f.tag()->album().toCString());
+        READ_TAG_STRING("comment", f.tag()->comment().toCString());
+        READ_TAG_STRING("genre", f.tag()->genre().toCString());
+        READ_TAG_INT(["year"], f.tag()->year());
+        READ_TAG_INT(["track"], f.tag()->track());
+
         if (auto file = dynamic_cast<TagLib::MPEG::File *>(f.file())) {
             if (auto tag = file->ID3v2Tag()) {
                 EM_ASM((Module["tags"]["id3v2"] = {}));
-                READ_TAG_STRING("title", tag->title().toCString());
-                READ_TAG_STRING("artist", tag->artist().toCString());
-                READ_TAG_STRING("album", tag->album().toCString());
-                READ_TAG_STRING("comment", tag->comment().toCString());
-                READ_TAG_STRING("genre", tag->genre().toCString());
-                READ_TAG_INT(["year"], tag->year());
-                READ_TAG_INT(["track"], tag->track());
 
                 auto list = tag->frameList();
                 for (auto i = list.begin(); i != list.end(); ++i) {

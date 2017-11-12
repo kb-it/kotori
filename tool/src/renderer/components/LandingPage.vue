@@ -79,7 +79,7 @@
                         </thead>
                         <tbody>
                             <tr v-for="(value, key) in getZippedTags(file)"
-                                v-if="typeof value.local != 'object' || value.local == null">
+                                v-if="typeof value.local != 'object' || !value.local">
                                 <td>{{ key }}</td>
                                 <td><input v-bind:value="value.local" type="text" class="input" @input="setTagValue(file, key, $event.target.value)"></input></td>
                                 <td v-if="file.tracks && file.remote > -1">
