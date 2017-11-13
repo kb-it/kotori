@@ -74,7 +74,7 @@ export class AppMailer {
                 this.getApiUrl(URL_TYPE.ACTIVATION),
                 activationToken
             ].join("/"),
-            activationRefreshLink = this.getApiUrl(URL_TYPE.ACTIVATION),
+            activationRefreshLink = this.getApiUrl(URL_TYPE.ACTIVATION_LINK),
             subject = "Welcome to Kotori",
             text = `Konichiwa ${to}!
 
@@ -88,7 +88,7 @@ export class AppMailer {
                 If the link does not open, copy the URL directly into your browser.
 
                 For security reasons the activation-link expires automatically after ${tokenExpiresAfter} hour.
-                If your link expired too soon, visit ${activationRefreshLink} and request a new activation-link.
+                If your link expires too soon, visit ${activationRefreshLink} and request a new activation-link.
 
                 Cheerfully yours,
                 The Kotori Team`,
