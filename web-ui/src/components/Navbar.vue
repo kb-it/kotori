@@ -1,14 +1,14 @@
 <template>
     <nav class="navbar is-fixed-top is-dark" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-            <a class="navbar-item navbar-logo" href="/">
+            <router-link to="/" tag="a" class="navbar-item navbar-logo">
                 <img :src="require('@/assets/logo.png')" alt="Logo">
                 <span class="title is-4 has-text-light">Kotori</span>
-            </a>
+            </router-link>
         </div>
         <div class="navbar-menu">
             <div class="navbar-end">
-                <div class="navbar-item has-dropdown is-hoverable" v-if="currentUser !== null">
+                <div class="navbar-item has-dropdown is-hoverable" v-if="currentUser">
                     <a class="navbar-link">
                         <span class="icon"><i class="fa fa-user-circle"></i></span>
                         <span>{{currentUser}}</span>
@@ -18,19 +18,19 @@
                         <router-link to="/changepw" tag="a" class="navbar-item">
                             Change password
                         </router-link>
-                        <a class="navbar-item">
+                        <a @click.prevent="logout()" class="navbar-item">
                             <span class="icon"><i class="fa fa-sign-out"></i></span>
                             <span>Sign out</span>
                         </a>
                     </div>
                 </div>
-                <div class="navbar-item" v-if="currentUser === null">
+                <div class="navbar-item" v-if="!currentUser">
                     <router-link to="/register" tag="button" class="button is-primary vcenter">
                         <span class="icon"><i class="fa fa-user-plus"></i></span>
                         <span>Sign Up</span>
                     </router-link>
                 </div>
-                <div class="navbar-item" v-if="currentUser === null">
+                <div class="navbar-item" v-if="!currentUser">
                     <router-link to="/login" tag="button" class="button is-link vcenter">
                         <span class="icon"><i class="fa fa-sign-in"></i></span>
                         <span>Login</span>
@@ -52,6 +52,7 @@
 <script lang="ts">
     import Vue from "vue";
     import Component from "vue-class-component";
+    import {goToHome} from "../util";
 
     @Component({
         name: "Navbar"
@@ -65,6 +66,13 @@
 
         mounted() {
             this.user = this.currentUser;
+        }
+
+        logout() {
+            this.$store.commit("RESET_USER");
+            localStorage.removeItem("token");
+            goToHome.call(this);
+
         }
     }
 </script>

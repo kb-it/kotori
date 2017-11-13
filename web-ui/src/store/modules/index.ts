@@ -31,7 +31,7 @@ export interface File {
 */
 const state: AppState = {
     // files: {},
-    user: null
+    user: localStorage.getItem("user")
 };
 
 const mutations = {
@@ -47,8 +47,13 @@ const mutations = {
         Vue.set(state, "files", files);
     },
     */
+    RESET_USER(state: AppState) {
+        state.user = undefined;
+        localStorage.removeItem("user");
+    },
     SET_USER(state: AppState, user: string) {
         state.user = user;
+        localStorage.setItem("user", user);
     }
 };
 

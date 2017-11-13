@@ -3,6 +3,7 @@ import {MailerSingleton, SentMessageInfo, SendMailOptions} from "./MailerSinglet
 
 enum URL_TYPE {
     ACTIVATION,
+    ACTIVATION_LINK,
     PW_RESET
 }
 
@@ -10,6 +11,7 @@ export class AppMailer {
     private static mailer = MailerSingleton.getInstance();
     private static hostName = "kotorimusic.ga";
     private static urlHost = `https://${AppMailer.hostName}`;
+    private static actionHost = [AppMailer.urlHost, "#"].join("/");
     private static from = `noreply@${AppMailer.hostName}`;
 
     /**
@@ -23,15 +25,23 @@ export class AppMailer {
         switch (type) {
             case URL_TYPE.ACTIVATION:
                 url = [
-                    this.urlHost,
+                    this.actionHost,
                     "activate"
+                ].join("/");
+                break;
+            case URL_TYPE.ACTIVATION_LINK:
+                url = [
+                    this.actionHost,
+                    "activate",
+                    "token"
                 ].join("/");
                 break;
             case URL_TYPE.PW_RESET:
                 url = [
-                    this.urlHost,
+                    this.actionHost,
                     "reset"
                 ].join("/");
+                break;
             default:
                 throw Error("Unknown url-type");
         }

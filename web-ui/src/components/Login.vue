@@ -104,8 +104,8 @@
                     this.result.error = response.data.error;
 
                     if (response.status == 200) {
-                        this.$store.commit('SET_USER', user);
-                        goToHome();
+                        this.$store.commit("SET_USER", user);
+                        goToHome.call(this);
                     }
                 })
                 .catch(err => {

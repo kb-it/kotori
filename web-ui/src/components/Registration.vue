@@ -6,17 +6,14 @@
                     <article id="registration" class="card is-rounded" style="min-width: 60%">
                         <div class="card-content">
                             <a class="delete is-large is-pulled-right" @click="goToHome()"></a>
-                            <div v-if="started">
+                            <div v-if="started && (pending || result.success)">
                                 <div v-if="pending" class="notification is-info">
                                     <p class="has-text-centered">
                                         Please wait a second... Your account is being created.
                                     </p>
                                 </div>
-                                <div v-if="!pending && !result.success" class="notification is-danger">
-                                    {{ result.error }}
-                                </div>
 
-                                <div v-if="started && !pending && result.success">
+                                <div v-if="!pending && result.success">
                                     <h2 class="title is-2 has-text-centered has-text-black">Account successfully created</h2>
                                     <div class="notification is-success">
                                         An activation link has been sent to you via mail.<br>
@@ -33,6 +30,9 @@
                                     Passwords must contain at least 12 characters
                                 </h3>
 
+                                <div v-if="!pending && !result.success" class="notification is-danger">
+                                    {{ result.error }}
+                                </div>
                                 <form @submit.prevent="doRegister()">
                                     <div class="field">
                                         <div class="control has-icons-left has-icons-right">
