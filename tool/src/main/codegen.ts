@@ -4,14 +4,12 @@
 declare var WebAssembly: any;
 declare var __static: any;
 
-import {ipcMain} from 'electron';
 import {FileTags} from '../renderer/store/modules/app'
 
 var fs = require("fs");
 var util = require("util");
 var path = require("path");
 var zlib = require("zlib");
-var child_process = require("child_process");
 
 // makes sure ffmpeg exists and is therefore callable
 export function init(isMain: boolean) {
@@ -32,33 +30,7 @@ export function init(isMain: boolean) {
     if (!locations.some((loc) => fs.existsSync(path.join(loc, "ffmpeg" + ext)))) {
         return false;
     }
-    if (isMain) registerEventHandler();
     return true;
-}
-
-// register an asynchronous IPC interface we'll use for communication with renderer
-function registerEventHandler() {
-    // TODO: ugly
-    var dir = path.dirname(process.argv.find((val) => 
-        val.endsWith(".js")) || path.join(process.resourcesPath, "app.asar", "strip_me"));
-
-    ipcMain.on("get-track", (event: any, filePath: string) => {
-        var forked = child_process.fork(path.join(dir, "index-codegen.js"), [__static, filePath]);
-        forked.on("message", (msg: any) => {
-            // pass the message along to the renderer
-            event.sender.send("get-track-result", filePath, msg);
-        });
-        forked.on("error", (err: any) => console.error("child err ", err));
-    });
-
-    ipcMain.on("write-tags", (event: any, filePath: string, meta: FileTags) => {
-        var forked = child_process.fork(path.join(dir, "index-codegen.js"), [__static, "--write", filePath]);
-        forked.on("message", (msg: any) => {
-            event.sender.send("write-tags-result", filePath, msg);
-        });
-        forked.on("error", (err: any) => console.error("child err ", err));
-        forked.send(meta);
-    });
 }
 
 export type FpCallback = (codes: number[] | null, err: any) => void;
