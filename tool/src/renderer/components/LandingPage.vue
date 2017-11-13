@@ -155,9 +155,9 @@
         getZippedTags(file: File) {
             if (!file.tags) return {};
             let zippedArr = Object.keys(file.tags).map((key: string) => ({
-                tag: key, 
-                local: (<any>file.tags)[key], 
-                remote: file.remote && file.remote > -1 ? (<any>file.tracks)[file.remote][key] : null
+                tag: key,
+                local: (<any>file.tags)[key],
+                remote: file.remote != null && file.remote > -1 ? (<any>file.tracks)[file.remote][key] : null
             }));
             return Object.assign({}, ...zippedArr.map(({tag, local, remote}) => ({[tag]: {local, remote}})));
         }
