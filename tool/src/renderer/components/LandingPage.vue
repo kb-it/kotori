@@ -26,12 +26,12 @@
                 <span class="vcenter">Selected Files</span>
                 <div>
                     <button class="button is-primary vcenter"
-                        v-if="Object.keys(files).length"
+                        v-if="Object.keys(files).length && hasChanged()"
                         v-bind:class="{'is-loading': pendingSync}" @click="sync(currentUser && supportedTags)">
                         {{ supportedTags && currentUser ? "Sync" : "Save" }}
                     </button>
                     <button class="button is-danger vcenter"
-                        v-if="Object.keys(files).length && Object.values(files).some((f) => JSON.stringify(f.tags) != JSON.stringify(f.lastTags))"
+                        v-if="Object.keys(files).length && hasChanged()"
                         v-bind:class="{'is-loading': pendingSync}" @click="revertChanges()">
                         Revert Changes
                     </button>
@@ -84,12 +84,12 @@
                                 <td><input v-bind:value="value.local" type="text" class="input" @input="setTagValue(file, key, $event.target.value)"></input></td>
                                 <td v-if="file.tracks && file.remote > -1">
                                     <p class="field" style="white-space: nowrap;">
-                                        <a class="button" @click="file.tags[key] = value.remote||null;">
+                                        <a class="button" @click="setTagValue(file, key, [null, '', undefined].indexOf(value.remote) > -1 ? null : value.remote);">
                                             <span class="icon is-small">
                                                 <i class="fa fa-arrow-left"></i>
                                             </span>
                                         </a>
-                                        <a class="button" @click="file.tracks[file.remote][key] = value.local||null;">
+                                        <a class="button" @click="setRemoteTagValue(file, file.remote, key, [null, '', undefined].indexOf(value.local) > -1 ? null : value.local);">
                                             <span class="icon is-small">
                                                 <i class="fa fa-arrow-right"></i>
                                             </span>
@@ -145,9 +145,25 @@
             document.removeEventListener("drop", this.onDrop);
         }
 
+        hasChanged() {
+            let localStatus = Object.values(this.files).some((f) => JSON.stringify(f.tags) != JSON.stringify(f.lastTags));
+            let remoteStatus = Object.values(this.files).some((f) => {
+                if (!f.tracks || f.remote == null || f.remote < 0) return;
+                let tags = this.onlyTags(f.tracks[f.remote]);
+                return Object.keys(tags).some((key) => tags[key] != f.lastTracks[f.remote][key]);
+            });
+            return localStatus || remoteStatus;
+        }
+
         setTagValue(file: File, key: string, value: string) {
             let tags = Object.assign({},  file.tags, {[key]: value});
             this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tags}});
+        }
+
+        setRemoteTagValue(file: File, remote: number, key: string, value: string) {
+            let track = Object.assign({}, file.tracks[remote], {[key]: value});
+            let tracks = Object.assign({}, file.tracks, {[remote]: track});
+            this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tracks}});
         }
 
         // zip the local file and remote file for a given file into one object (grouped by tags)
@@ -245,6 +261,13 @@
             if (checkReady(this.$store.state)) startSync();
         }
 
+        onlyTags(obj: any) {
+            return Object.assign({},
+                ...Object.keys(obj).filter((key) => (<any>this.supportedTags).includes(key))
+                                    .map((key) => ({[key]: obj[key]}))
+            );
+        }
+
         // Perform the synchronisation the user picked
         sync(syncRemote: boolean) {
             this.pendingSync = true;
@@ -253,16 +276,11 @@
 
             // Build a list of tracks to update on the server
             if (syncRemote && this.supportedTags) {
-                let onlyTags = (obj: any) => Object.assign({},
-                    ...Object.keys(obj).filter((key) => (<any>this.supportedTags).includes(key))
-                                        .map((key) => ({[key]: obj[key]}))
-                );
-
                 for (let file of Object.values(this.files)) {
                     if (file.remote > -1) {
                         console.log(this.supportedTags);
                         let track = file.tracks[file.remote];
-                        let tags = onlyTags(track);
+                        let tags = this.onlyTags(track);
                         // make sure something actually changed since the last time
                         if (!Object.keys(tags).some((key) => track[key] != file.lastTracks[file.remote][key])) {
                             continue;
