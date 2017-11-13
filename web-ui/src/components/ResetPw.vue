@@ -6,7 +6,7 @@
                     <article id="reset" class="card is-rounded" style="min-width: 60%">
                         <div class="card-content">
                             <a class="delete is-large is-pulled-right" @click="goToHome()"></a>
-                            <h2 class="title is-2 has-text-centered has-text-black">
+                            <h2 class="title is-1 has-text-centered has-text-black">
                                 Set new password
                             </h2>
                             <div v-if="started">
@@ -66,12 +66,13 @@
     import Vue from 'vue'
     import Component from "vue-class-component"
     import {http} from "../config"
-    import {handleHttpError} from "../util"
+    import {handleHttpError, goToHome} from "../util"
 
     @Component({
         name: "ResetPw"
     })
     export default class ResetPw extends Vue {
+        goToHome = goToHome;
         status = {password: false, repeatedPw: false};
         pending = false;
         password = "";
@@ -118,10 +119,6 @@
                         this.result.error = handleHttpError("ResetPw", err);
                     });
             }
-        }
-
-        goToHome() {
-            this.$router.push({path: "/"});
         }
     }
 </script>

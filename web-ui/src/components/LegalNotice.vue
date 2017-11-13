@@ -2,6 +2,7 @@
     <div class="tile is-ancestor">
         <div class="tile is-12 is-vertical is-parent">
             <div class="tile is-child box">
+                <a class="delete is-large is-pulled-right" @click="goToHome($router)"></a>
                 <h1 class="title is-1 has-text-black">
                     Legal Notice
                 </h1>
@@ -40,11 +41,13 @@
 <script lang="ts">
     import Vue from 'vue'
     import Component from "vue-class-component"
+    import {goToHome} from "../util"
 
     @Component({
         name: "LegalNotice"
     })
     export default class LegalNotice extends Vue {
+        goToHome = goToHome;
     }
 </script>
 

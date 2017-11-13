@@ -6,10 +6,10 @@
                     <article class="card is-rounded" style="min-width: 60%">
                         <div class="card-content">
                             <a class="delete is-large is-pulled-right" @click="goToHome()"></a>
-                            <h1 class="title is-2 has-text-centered has-text-black">
-                                Sign in
+                            <h1 class="title is-1 has-text-centered has-text-black">
+                                Login
                             </h1>
-                            <h2 class="subtitle is-6 has-text-centered has-text-dark">
+                            <h2 class="subtitle is-6 has-text-centered has-text-grey">
                                 This is required to use synchronization
                             </h2>
                             <form @submit.prevent="doLogin()">
@@ -52,7 +52,7 @@
                             </form>
 
                             <div style="margin-top: 10px;">
-                                <router-link to="/forgotpw" tag="a">
+                                <router-link to="/forgotpw" tag="a" class="has-text-grey">
                                     Reset password
                                 </router-link>
                             </div>
@@ -68,12 +68,13 @@
     import Vue from 'vue'
     import Component from "vue-class-component"
     import {http} from "../config"
-    import {handleHttpError} from "../util"
+    import {handleHttpError, goToHome} from "../util"
 
     @Component({
         name: "Login"
     })
     export default class Login extends Vue {
+        goToHome = goToHome;
         status = {email: false, password: false};
         pending = false;
         started = false;
@@ -104,7 +105,7 @@
 
                     if (response.status == 200) {
                         this.$store.commit('SET_USER', user);
-                        this.goToHome();
+                        goToHome();
                     }
                 })
                 .catch(err => {
@@ -112,10 +113,6 @@
                     this.result.success = false;
                     this.result.error = handleHttpError("Login", err);
                 });
-        }
-
-        goToHome() {
-            this.$router.push({path: "/"});
         }
     }
 </script>

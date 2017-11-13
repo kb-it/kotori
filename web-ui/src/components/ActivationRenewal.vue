@@ -7,8 +7,11 @@
                         <div class="card-content">
                             <a class="delete is-large is-pulled-right" @click="goToHome()"></a>
                             <h2 class="title is-2 has-text-centered has-text-black">
-                                Request new activation link
+                                Request activation link
                             </h2>
+                            <h3 class="subtitle is-6 has-text-grey">
+                                Enter an email address and receive a new link for account activation.
+                            </h3>
                             <div class="content" v-if="started">
                                 <div v-if="pending" class="notification is-info">
                                     <p class="has-text-centered">
@@ -57,12 +60,13 @@
     import Vue from 'vue'
     import Component from "vue-class-component"
     import {http} from "../config"
-    import {handleHttpError} from "../util"
+    import {handleHttpError, goToHome} from "../util"
 
     @Component({
         name: "Reset"
     })
     export default class Reset extends Vue {
+        goToHome = goToHome;
         user = "";
         status = {email: false};
         pending = false;
@@ -86,10 +90,6 @@
                     this.result.success = false;
                     this.result.error = handleHttpError("Renewal", err);
                 });
-        }
-
-        goToHome() {
-            this.$router.push({path: "/"});
         }
     }
 </script>

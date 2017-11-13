@@ -33,7 +33,7 @@
                 <div class="navbar-item" v-if="currentUser === null">
                     <router-link to="/login" tag="button" class="button is-link vcenter">
                         <span class="icon"><i class="fa fa-sign-in"></i></span>
-                        <span>Sign In</span>
+                        <span>Login</span>
                     </router-link>
                 </div>
 

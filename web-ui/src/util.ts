@@ -8,3 +8,7 @@ export function handleHttpError(_: string, err: AxiosError) {
     }
     return msg;
 }
+
+export function goToHome() {
+    this.$router.push({path: "/"});
+}

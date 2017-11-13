@@ -1,6 +1,6 @@
 import axios, {AxiosResponse} from "axios";
 
-const API_URL = "http://192.168.99.100:3000" || "https://kotorimusic.ga/api";
+const API_URL = "https://kotorimusic.ga/api";
 
 export const http = axios.create({
     baseURL: API_URL

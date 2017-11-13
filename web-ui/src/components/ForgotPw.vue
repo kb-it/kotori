@@ -6,10 +6,10 @@
                     <article class="card is-rounded" style="min-width: 60%">
                         <div class="card-content">
                             <a class="delete is-large is-pulled-right" @click="goToHome()"></a>
-                            <h1 class="title is-2 has-text-centered has-text-black">
+                            <h1 class="title is-1 has-text-centered has-text-black">
                                 Forgot password
                             </h1>
-                            <h2 class="subtitle is-6 has-text-centered has-text-dark">
+                            <h2 class="subtitle is-6 has-text-centered has-text-grey">
                                 Enter your email address below. You'll receive a mail with further instructions in a minute.
                             </h2>
                             <div v-if="started">
@@ -60,12 +60,14 @@
     import Vue from 'vue'
     import Component from "vue-class-component"
     import {http} from "../config"
+    import {goToHome} from "../util"
     import {handleHttpError} from "../util"
 
     @Component({
         name: "ForgotPw"
     })
     export default class ForgotPw extends Vue {
+        goToHome = goToHome;
         status = {email: false};
         pending = false;
         user = "";
@@ -90,10 +92,6 @@
                     this.result.success = false;
                     this.result.error = handleHttpError("ForgotPw", err);
                 });
-        }
-
-        goToHome() {
-            this.$router.push({path: "/"});
         }
     }
 </script>

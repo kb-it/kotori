@@ -26,10 +26,10 @@
                                 </div>
                             </div>
                             <div v-else>
-                                <h2 class="title is-2 has-text-centered has-text-black">
+                                <h2 class="title is-1 has-text-centered has-text-black">
                                     Sign up
                                 </h2>
-                                <h3 class="subtitle is-6 has-text-centered" style="color:grey;">
+                                <h3 class="subtitle is-6 has-text-centered has-text-grey">
                                     Passwords must contain at least 12 characters
                                 </h3>
 
@@ -83,12 +83,13 @@
     import Vue from 'vue'
     import Component from "vue-class-component"
     import {http} from "../config"
-    import {handleHttpError} from "../util"
+    import {handleHttpError, goToHome} from "../util"
 
     @Component({
         name: "Registration"
     })
     export default class Registration extends Vue {
+        goToHome = goToHome;
         status = {email: false, password: false, repeatedPw: false};
         pending = false;
         started = false;
@@ -146,10 +147,6 @@
                         this.result.error = handleHttpError("Registration", err);
                     });
             }
-        }
-
-        goToHome() {
-            this.$router.push({path: "/"});
         }
     }
 </script>
