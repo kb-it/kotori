@@ -4,6 +4,7 @@ import {MailerSingleton, SentMessageInfo, SendMailOptions} from "./MailerSinglet
 enum URL_TYPE {
     ACTIVATION,
     ACTIVATION_LINK,
+    FORGOT_PW,
     PW_RESET
 }
 
@@ -34,6 +35,12 @@ export class AppMailer {
                     this.actionHost,
                     "activate",
                     "renew"
+                ].join("/");
+                break;
+            case URL_TYPE.FORGOT_PW:
+                url = [
+                    this.actionHost,
+                    "forgotpw"
                 ].join("/");
                 break;
             case URL_TYPE.PW_RESET:
@@ -88,7 +95,7 @@ export class AppMailer {
                 If the link does not open, copy the URL directly into your browser.
 
                 For security reasons the activation-link expires automatically after ${tokenExpiresAfter} hour.
-                If your link expires too soon, visit ${activationRefreshLink} and request a new activation-link.
+                If your link expired too soon, visit ${activationRefreshLink} and request a new activation-link.
 
                 Cheerfully yours,
                 The Kotori Team`,
@@ -146,7 +153,8 @@ export class AppMailer {
         const pwResetLink = [
                 this.getApiUrl(URL_TYPE.PW_RESET),
                 pwResetToken
-            ],
+            ].join("/"),
+            forgotPwLink = this.getApiUrl(URL_TYPE.FORGOT_PW),
             subject = "Reset your Password",
             text = `Konichiwa ${to}!
 
@@ -161,7 +169,7 @@ export class AppMailer {
                 If the link does not open, copy the URL directly into your browser.
 
                 For security reasons the password-reset-link expires automatically after ${tokenExpiresAfter} hour.
-                If your link expired too soon, visit https://${this.hostName} and request a new password-reset-link.
+                If your link expired too soon, visit ${forgotPwLink} and request a new password-reset-link.
 
                 Cheerfully yours,
                 The Kotori Team

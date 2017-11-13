@@ -1,12 +1,14 @@
 <template>
-    <div>
-        <navbar></navbar>
-        <main class="hero is-primary is-fullheight is-bold">
-            <div class="hero-body">
-                <router-view></router-view>
-            </div>
+    <div class="hero is-primary is-fullheight is-bold">
+        <div class="hero-head">
+            <navbar></navbar>
+        </div>
+        <main class="hero-body">
+            <router-view></router-view>
         </main>
-        <page-footer></page-footer>
+        <div class="hero-foot">
+            <page-footer></page-footer>
+        </div>
     </div>
 </template>
 <script lang="ts">

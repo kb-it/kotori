@@ -24,27 +24,30 @@
                         </a>
                     </div>
                 </div>
-                <div class="navbar-item" v-if="!currentUser">
-                    <router-link to="/register" tag="button" class="button is-primary vcenter">
-                        <span class="icon"><i class="fa fa-user-plus"></i></span>
-                        <span>Sign Up</span>
-                    </router-link>
+                <div class="navbar-item">
+                    <div class="field is-grouped">
+                        <div v-if="!currentUser" class="control">
+                            <router-link to="/register" tag="button" class="button is-primary vcenter">
+                                <span class="icon"><i class="fa fa-user-plus"></i></span>
+                                <span>Sign Up</span>
+                            </router-link>
+                        </div>
+                        <div v-if="!currentUser"  class="control">
+                            <router-link to="/login" tag="button" class="button is-link vcenter">
+                                <span class="icon"><i class="fa fa-sign-in"></i></span>
+                                <span>Login</span>
+                            </router-link>
+                        </div>
+                        <div class="control">
+                            <a class="button is-primary is-inverted" href="https://kotorimusic.ga/bin/kotori_tool_v.1.0.0.exe" title="Download Kotori Tool">
+                                <span class="icon">
+                                    <i class="fa fa-windows"></i>
+                                </span>
+                                <span>Download</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="navbar-item" v-if="!currentUser">
-                    <router-link to="/login" tag="button" class="button is-link vcenter">
-                        <span class="icon"><i class="fa fa-sign-in"></i></span>
-                        <span>Login</span>
-                    </router-link>
-                </div>
-
-                <span class="navbar-item">
-                    <a class="button is-primary is-inverted">
-                        <span class="icon">
-                            <i class="fa fa-github"></i>
-                        </span>
-                        <span>Download</span>
-                    </a>
-                </span>
             </div>
         </div>
     </nav>

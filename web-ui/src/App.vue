@@ -9,10 +9,9 @@
     import Component from "vue-class-component";
 
     @Component({
-        name: "App"
+        name: "Kotori Web-UI"
     })
     export default class App extends Vue {
-        name = "Kotori Web-UI"
     }
 </script>
 
