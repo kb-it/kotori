@@ -31,7 +31,7 @@
                                 </h3>
 
                                 <div v-if="started && !pending && !result.success" class="notification is-danger">
-                                    {{ result.error }}
+                                    {{ result.error || "Registration failed. Please try again later." }}
                                 </div>
                                 <form @submit.prevent="doRegister()">
                                     <div class="field">

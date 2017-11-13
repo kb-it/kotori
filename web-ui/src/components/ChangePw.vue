@@ -20,7 +20,7 @@
                                 </div>
                                 <div v-if="!pending && !result.success">
                                     <div class="notification is-danger">
-                                        {{ result.error }}
+                                        {{ result.error || "Password could not be changed. Please try again later." }}
                                     </div>
                                 </div>
                             </div>

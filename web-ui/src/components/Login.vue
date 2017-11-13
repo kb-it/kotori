@@ -15,7 +15,7 @@
                             <form @submit.prevent="doLogin()">
                                 <div v-if="started && !pending && !result.success" style="margin-bottom: 20px;">
                                     <div class="notification is-danger">
-                                        {{ result.error }}
+                                        {{ result.error || "Login failed. Please try again later." }}
                                         <div v-if="/not activated/i.test(result.error)">
                                             You can request a new activation-link
                                             <router-link to="/activate/renew" tag="a">here</router-link>.

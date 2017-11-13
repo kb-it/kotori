@@ -22,7 +22,7 @@
                                 </div>
                                 <div v-if="!pending && !result.success">
                                     <div class="notification is-danger">
-                                        {{ result.error }}<br>
+                                        {{ result.error || "Account could not be activated. Please try again later." }}<br>
                                     </div>
 
                                     <router-link to="/activate/renew" tag="button" class="button is-primary is-medium is-fullwidth">

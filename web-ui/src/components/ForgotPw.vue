@@ -25,7 +25,7 @@
                                 </div>
                                 <div v-if="!pending && !result.success">
                                     <div class="notification is-danger">
-                                        {{ result.error }}
+                                        {{ result.error || "Request failed. Please try again later." }}
                                     </div>
                                 </div>
                             </div>
