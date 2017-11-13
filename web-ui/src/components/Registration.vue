@@ -30,7 +30,7 @@
                                     Passwords must contain at least 12 characters
                                 </h3>
 
-                                <div v-if="!pending && !result.success" class="notification is-danger">
+                                <div v-if="started && !pending && !result.success" class="notification is-danger">
                                     {{ result.error }}
                                 </div>
                                 <form @submit.prevent="doRegister()">
