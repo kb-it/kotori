@@ -117,7 +117,7 @@
     import {remote} from 'electron';
 
     import {handleHttpError} from '../util'
-    import {File, FILE_TAG_KEYS} from '../store/modules/app'
+    import {File} from '../store/modules/app'
     import {http} from '../config'
 
     const dialog = remote.dialog;
@@ -154,15 +154,18 @@
         // e.g. {tag: {local: "local", remote: "remote"}, ...} from a given File
         getZippedTags(file: File) {
             if (!file.tags) return {};
-            let zippedArr = Object.keys(file.tags).map((key) => (
-                {tag: key, local: file.tags[key], remote: file.remote > -1 ? file.tracks[file.remote][key] : null}
-            ));
+            let zippedArr = Object.keys(file.tags).map((key: string) => ({
+                tag: key, 
+                local: (<any>file.tags)[key], 
+                remote: file.remote && file.remote > -1 ? (<any>file.tracks)[file.remote][key] : null
+            }));
             return Object.assign({}, ...zippedArr.map(({tag, local, remote}) => ({[tag]: {local, remote}})));
         }
 
         // change the synchronisation "partner" (remote side) of a given track
         changeRemoteTrack(file: File, element: any) {
             let givenRemote = element.value;
+            if (!file.tracks || !file.lastTracks) return;
             if (givenRemote < 0) {
                 let newRemote = file.tracks.length;
                 let newTracks = file.tracks.concat([{}]),
@@ -195,7 +198,7 @@
                 properties: ['openFile']
             });
             if (paths != null) {
-                this.AddFile(paths[0]);
+                this.addFile(paths[0]);
             }
         }
 
@@ -248,13 +251,13 @@
             let newTracks = [],
                 updateTracks = [];
 
-            let onlyTags = (obj) => Object.assign({},
-                ...Object.keys(obj).filter((key) => this.supportedTags.includes(key))
-                                      .map((key) => ({[key]: obj[key]}))
-            );
-
             // Build a list of tracks to update on the server
-            if (syncRemote) {
+            if (syncRemote && this.supportedTags) {
+                let onlyTags = (obj: any) => Object.assign({},
+                    ...Object.keys(obj).filter((key) => (<any>this.supportedTags).includes(key))
+                                        .map((key) => ({[key]: obj[key]}))
+                );
+
                 for (let file of Object.values(this.files)) {
                     if (file.remote > -1) {
                         console.log(this.supportedTags);

@@ -38,9 +38,12 @@ export function init(isMain: boolean) {
 
 // register an asynchronous IPC interface we'll use for communication with renderer
 function registerEventHandler() {
-    var dir = path.dirname(process.argv.find((val) => val.endsWith(".js")));
+    // TODO: ugly
+    var dir = path.dirname(process.argv.find((val) => 
+        val.endsWith(".js")) || path.join(process.resourcesPath, "app.asar", "strip_me"));
+
     ipcMain.on("get-track", (event: any, filePath: string) => {
-        var forked = child_process.fork(path.join(dir, "index-codegen.js"), [filePath]);
+        var forked = child_process.fork(path.join(dir, "index-codegen.js"), [__static, filePath]);
         forked.on("message", (msg: any) => {
             // pass the message along to the renderer
             event.sender.send("get-track-result", filePath, msg);
@@ -49,7 +52,7 @@ function registerEventHandler() {
     });
 
     ipcMain.on("write-tags", (event: any, filePath: string, meta: FileTags) => {
-        var forked = child_process.fork(path.join(dir, "index-codegen.js"), ["--write", filePath]);
+        var forked = child_process.fork(path.join(dir, "index-codegen.js"), [__static, "--write", filePath]);
         forked.on("message", (msg: any) => {
             event.sender.send("write-tags-result", filePath, msg);
         });
@@ -60,16 +63,19 @@ function registerEventHandler() {
 
 export type FpCallback = (codes: number[] | null, err: any) => void;
 
+// TODO: kill the electron-webpack guys, this is ugly!!!
+const staticPath = (!__static || __static.indexOf("undefined") == 0) ? process.argv[2] : __static;
+
 export function getFingerprint(filePath: string, cb: FpCallback | null) {
     // node workaround since emscripten will try to use fetch else
     WebAssembly.instantiateStreaming = undefined;
 
-    var codegen = __non_webpack_require__(path.join(__static, "codegen.js"));
+    var codegen = __non_webpack_require__(path.join(staticPath, "codegen.js"));
     var buffer = "";
 
     (<any>codegen)({
         arguments: [filePath],
-        wasmBinaryFile: path.join(__static, "codegen.wasm"),
+        wasmBinaryFile: path.join(staticPath, "codegen.wasm"),
         onExit: (code: number) => {
             var codes: number[] | null = null;
             if (buffer[0] == "[") {
@@ -112,11 +118,11 @@ export function metaData(filePath: string, tags: FileTags | null, cb: (tags: Fil
     // node workaround since emscripten will try to use fetch else
     WebAssembly.instantiateStreaming = undefined;
 
-    var taglib = __non_webpack_require__(path.join(__static, "taglib.js"));
+    var taglib = __non_webpack_require__(path.join(staticPath, "taglib.js"));
     var buffer = fs.readFileSync(filePath);
 
     (<any>taglib)({
-        wasmBinaryFile: path.join(__static, "taglib.wasm"),
+        wasmBinaryFile: path.join(staticPath, "taglib.wasm"),
         io_buffer: buffer,
         tags: tags,
         onExit: function(code: number) {

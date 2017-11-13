@@ -15,19 +15,19 @@ function handleError(err: any) {
 }
 
 // write tags to the given file
-if (process.argv[2] == "--write") {
+if (process.argv[3] == "--write") {
     // wait until we get the new metadata from the parent process
     process.on('message', (m) => {
-        codegen.metaData(process.argv[3], m, (tags, err) => {
+        codegen.metaData(process.argv[4], m, (tags, err) => {
             handleError(err);
             process.send!({});
             process.exit(0);
         });
     });
 } else {
-    codegen.getFingerprint(process.argv[2], (codes, err) => {
+    codegen.getFingerprint(process.argv[3], (codes, err) => {
         handleError(err);
-        codegen.metaData(process.argv[2], null, (tags, err) => {
+        codegen.metaData(process.argv[3], null, (tags, err) => {
             handleError(err);
             process.send!({ codes, tags });
             process.exit(0);
