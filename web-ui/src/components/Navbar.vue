@@ -32,10 +32,10 @@
                     </a>
 
                     <div class="navbar-dropdown is-boxed">
-                        <router-link to="/changepw" tag="a" class="navbar-item">
+                        <router-link to="/changepw" tag="a" class="navbar-item has-text-black">
                             Change password
                         </router-link>
-                        <a @click.prevent="logout()" class="navbar-item">
+                        <a @click.prevent="logout()" class="navbar-item has-text-black">
                             <span class="icon"><i class="fa fa-sign-out"></i></span>
                             <span>Sign out</span>
                         </a>
