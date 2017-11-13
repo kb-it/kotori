@@ -148,7 +148,7 @@
         hasChanged() {
             let localStatus = Object.values(this.files).some((f) => JSON.stringify(f.tags) != JSON.stringify(f.lastTags));
             let remoteStatus = Object.values(this.files).some((f) => {
-                if (!f.tracks || f.remote == null || f.remote < 0) return;
+                if (!f.tracks || f.remote == null || f.remote < 0) return false;
                 let tags = this.onlyTags(f.tracks[f.remote]);
                 return Object.keys(tags).some((key) => tags[key] != f.lastTracks[f.remote][key]);
             });
@@ -161,7 +161,7 @@
         }
 
         setRemoteTagValue(file: File, remote: number, key: string, value: string) {
-            let track = Object.assign({}, file.tracks[remote], {[key]: value});
+            let track = Object.assign({}, file.tracks![remote], {[key]: value});
             let tracks = Object.assign({}, file.tracks, {[remote]: track});
             this.$store.commit("UPDATE_FILE", {path: file.path, changes: {tracks}});
         }
