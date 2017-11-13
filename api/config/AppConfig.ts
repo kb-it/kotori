@@ -1,5 +1,4 @@
 "use strict";
-
 type ConfigMap = {
     APP_TESTMODE_ENABLED: boolean;
     EXPRESS_PORT: number;

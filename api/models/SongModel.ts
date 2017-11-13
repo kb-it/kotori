@@ -110,7 +110,7 @@ export class SongModel {
     /**
      * @description Returns meta-data of specific tracks by its fingerprint
      * @param {number[][]} fingerprints Fingerprints of tracks, whose meta-data shall be retrieved from db
-     * @returns {SearchResult[]} Table-rows consisting of track-meta-data as returned from DBS
+     * @returns {Promise<SearchResult[]>} Table-rows consisting of track-meta-data as returned from DBS
      */
     private static async requestMetaData(fingerprints: number[][]): Promise<SearchResultRow[]> {
         const sql = `SELECT DISTINCT ON (track.id, tag_type.id)
@@ -146,7 +146,7 @@ export class SongModel {
     /**
      * @description Requests all meta-data values of several tracks, specified by its fingerprint
      * @param {number[][]} fingerprints Fingerprints of tracks
-     * @returns {FingerprintResult[]} Meta-data values of tracks, grouped by related fingerprints
+     * @returns {Promise<FingerprintResult[]>} Meta-data values of tracks, grouped by related fingerprints
      */
     public static async queryAll(fingerprints: number[][]): Promise<QueryResponse[]> {
         const searchResults = await this.requestMetaData(fingerprints);
@@ -174,7 +174,7 @@ export class SongModel {
     /**
      * @description Returns meta-data of specific tracks, determined by its track-ids
      * @param {TrackId[]} trackIds Track-ids of tracks, whose meta-data shall be retrieved from db
-     * @returns {MetaDataRow[]} Table-rows consisting of track-meta-data as returned from DBS
+     * @returns {Promise<MetaDataRow[]>} Table-rows consisting of track-meta-data as returned from DBS
      */
     private static async requestMetaDataRowsByIds(trackIds: TrackId[]): Promise<MetaDataRow[]> {
         const sql = `SELECT DISTINCT ON (track.id, tag_type.id)
@@ -198,6 +198,11 @@ export class SongModel {
         return queryResultsRows;
     }
 
+    /**
+     * @description Converts meta-data of specific tracks into map of track-ids to tag-values
+     * @param {MetaDataRow[]} metaDataRows Queryrows, containing track-ids, tag-names and -values and tag-revisions
+     * @returns {TrackDataMap}
+     */
     private static rowsToTrackTagDataMap(metaDataRows: MetaDataRow[]): TrackDataMap {
         const trackTagMap: TrackDataMap = metaDataRows.reduce((trackTagMap: TrackDataMap, row: MetaDataRow) => {
             const trackId = row.track_id,
@@ -221,6 +226,15 @@ export class SongModel {
         return trackTagMap;
     }
 
+    /**
+     * @description Compares tag-names and values from first argument with values of second argument.
+     * Values which are not defined in second argument or differ will be returned,
+     * where tag-type-id and revision number of currently stored tag value will be added.
+     * @param {TrackTag} userTags Object consisting of tag names as keys and related tag values as object values
+     * @param {TagNameDataMap} storedTagDataMap Map of tag names to tag value, tag type id & revision-no as stored in db
+     * @returns {Promise<TagNameDataMap>} New or defined and differing tags from first argument,
+     *                                     where revision-no and tag-type id from second argument are also returned
+     */
     private static async getChangedTagDataMap(userTags: TrackTag,
                                             storedTagDataMap: TagNameDataMap): Promise<TagNameDataMap> {
         const userTagNames = Object.getOwnPropertyNames(userTags),
@@ -258,6 +272,13 @@ export class SongModel {
         return changedTagData;
     }
 
+    /**
+     * @description Compares trackdata from first argument with trackdata from second argument, where only
+     * new or defined and differing values from first argument, mapped to track-ids will be returned
+     * @param {UpdateTrackData[]} userTrackData Objects consisting of track-ids and related tags
+     * @param {TrackDataMap} storedTrackTagDataMap Map of track-ids to its related metadata and tags
+     * @return {Promise<TrackData[]>}
+     */
     private static async getChangedTrackData(userTrackData: UpdateTrackData[],
                                             storedTrackTagDataMap: TrackDataMap): Promise<TrackData[]> {
         let updateTrackData: TrackData[] = [];
@@ -286,7 +307,7 @@ export class SongModel {
 
     /**
      * @description Returns meta data of a stored track and its related tags
-     * @param {UpdateTrackData[]} updateDataList
+     * @param {UpdateTrackData[]} updateDataList Queryrows containing ids of tracks, whose metadata shall be returned
      * @returns {Promise<TrackDataMap>}
      */
     private static async getStoredTrackDataMap(updateDataList: UpdateTrackData[]): Promise<TrackDataMap> {
@@ -394,25 +415,26 @@ export class SongModel {
         return trackId;
     }
 
-    private static async insertMetaData(jwtUserData: JWTUserData,
-                                        insertDataList: InsertTrackData[]): Promise<void> {
-        const updateDataList: UpdateTrackData[] = await Promise.all(insertDataList.map(
-            async (trackData: InsertTrackData) => {
-                const trackId = await this.insertTrack(trackData.fingerprint, jwtUserData.id),
-                    updateTrackData: UpdateTrackData = {
-                        trackId: trackId,
-                        tags: trackData.tags
-                    };
-
-                return updateTrackData;
-            }));
-
-        await this.updateMetaData(jwtUserData, updateDataList);
-    }
-
+    /**
+     * @description Inserts tags and tracks for specified fingerprints in db as user, determined by its id.
+     * If fingerprints itself do not exist yet, fingerprints will be inserted as well.
+     * @param {JWTUserData} jwtUserData Data of user, who triggers insertion of new track
+     * @param {InsertTrackData} insertDataList Tags and tracks mapped to fingerprints to be inserted
+     */
     public static async insertAll(jwtUserData: JWTUserData, insertDataList: InsertTrackData[]): Promise<void> {
         await this.executeInTransaction(async () => {
-            await this.insertMetaData(jwtUserData, insertDataList);
+            const updateDataList: UpdateTrackData[] = await Promise.all(insertDataList.map(
+                async (trackData: InsertTrackData) => {
+                    const trackId = await this.insertTrack(trackData.fingerprint, jwtUserData.id),
+                        updateTrackData: UpdateTrackData = {
+                            trackId: trackId,
+                            tags: trackData.tags
+                        };
+
+                    return updateTrackData;
+                }));
+
+            await this.updateMetaData(jwtUserData, updateDataList);
         });
     }
 
@@ -429,6 +451,46 @@ export class SongModel {
         return tagNames;
     }
 
+    /**
+     * @description Returns metadata of specific tracks, where tracks are paginated and ordered by a specific criteria.
+     * Metadata can optionally be filtered for specific tag values.
+     * @param {number} limit Not more than specified amount of results will be returned per call
+     * @param {number} offset Amount of rows, which will be skipped before beginning to return rows
+     * @returns {Promise<TrackData[]>}
+     */
+    public static async getPaginatedTracks(limit: number, offset: number): Promise<TrackData[]> {
+        const sql = `SELECT track.id AS track_id,
+                    tag_type.name AS tag_type_name,
+                    tag.value AS tag_value,
+                    tag.created_at AS tag_created_at
+                FROM track
+                INNER JOIN tag ON track.id = tag.id_track
+                INNER JOIN tag_type ON tag.id_tag_type = tag_type.id
+                ORDER BY track.id_fingerprint, track.id, tag_type_name
+                LIMIT $1
+                OFFSET $2`,
+            queryParameters: string[] = [String(limit), String(offset)];
+        let queryResultRows = (await this.pgClient.query(sql, queryParameters)).rows,
+            trackData: TrackData[] = queryResultRows.reduce((trackData: TrackData[], row) => {
+                const tagName = row.tag_type_name,
+                    tagValue = Utils.encodeTagValue(row.tag_value);
+                let track: TrackData = trackData[trackData.length - 1];
+
+                if (!track || track.trackId !== row.track_id) {
+                    track = {trackId: row.track_id, tags: {}} as TrackData;
+                    trackData.push(track);
+                }
+                (<any> track.tags)[tagName] = tagValue;
+                return trackData;
+            }, [] as TrackData[]);
+
+        return trackData;
+    }
+
+    /**
+     * @description Executes a passed function in postgres transaction
+     * @param {Function} queryFn Function, using sql-queries which shall be executed as transaction
+     */
     private static async executeInTransaction(queryFn: Function) {
         try {
             await this.pgClient.query("BEGIN");

@@ -1,23 +1,22 @@
 <template>
     <div id="app">
-        <img src="./assets/logo.png">
         <router-view></router-view>
     </div>
 </template>
 
 <script lang="ts">
-    export default {
-        name: 'app'
+    import Vue from "vue";
+    import Component from "vue-class-component";
+
+    @Component({
+        name: "App"
+    })
+    export default class App extends Vue {
+        name = "Kotori Web-UI"
     }
 </script>
 
 <style>
-    #app {
-        font-family: 'Avenir', Helvetica, Arial, sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        text-align: center;
-        color: #2c3e50;
-        margin-top: 60px;
-    }
+    @import "~bulma/css/bulma.css";
+    @import "~font-awesome/css/font-awesome.min.css";
 </style>

@@ -2,7 +2,8 @@
 import {MailerSingleton, SentMessageInfo, SendMailOptions} from "./MailerSingleton";
 
 enum URL_TYPE {
-    ACTIVATION
+    ACTIVATION,
+    PW_RESET
 }
 
 export class AppMailer {
@@ -17,19 +18,20 @@ export class AppMailer {
      * @returns {string}
      */
     private static getApiUrl(type: URL_TYPE): string {
-        const apiVersion = "v1";
         let url: string;
 
         switch (type) {
             case URL_TYPE.ACTIVATION:
                 url = [
                     this.urlHost,
-                    "api",
-                    apiVersion,
-                    "user",
-                    "activation"
+                    "activate"
                 ].join("/");
                 break;
+            case URL_TYPE.PW_RESET:
+                url = [
+                    this.urlHost,
+                    "reset"
+                ].join("/");
             default:
                 throw Error("Unknown url-type");
         }
@@ -50,13 +52,14 @@ export class AppMailer {
 
     /**
      * Sends welcome-mail, containing activation-link for a specific user-account, to an user
-     * @param {object} obj wrapper for to- and activationToken value
+     * @param {object} obj wrapper for several mailOptions
      * @param {string | string[]} obj.to Address of one or many mail-recipients
-     * @param {string} activationToken Token, which is expected from server for activating a user-account
+     * @param {string} obj.activationToken Token, which is expected from server for activating a user-account
+     * * @param {number} obj.tokenExpiresAfter Activation token is only valid for specified number of hours
      * @returns {Promise<SentMessageInfo>} Information about sent message
      */
-    public static async sendRegistrationMail({to, activationToken}: {to: string | string[],
-                                                activationToken: string}): Promise<SentMessageInfo> {
+    public static async sendRegistrationMail({to, activationToken, tokenExpiresAfter}: {to: string | string[],
+                                        activationToken: string, tokenExpiresAfter: number}): Promise<SentMessageInfo> {
         const activationLink = [
                 this.getApiUrl(URL_TYPE.ACTIVATION),
                 activationToken
@@ -73,6 +76,9 @@ export class AppMailer {
 
                 If the link does not open, copy the URL directly into your browser.
 
+                For security reasons the activation-link expires automatically after ${tokenExpiresAfter} hour.
+                If your link expired too soon, visit https://${this.hostName} and request a new activation-link.
+
                 Cheerfully yours,
                 The Kotori Team`,
             mailOptions = this.getMailOptions({to, subject, text});
@@ -81,19 +87,20 @@ export class AppMailer {
     }
 
     /**
-    * Sends mail, containing new activation-link for a specific user-account, to an user
-    * @param {object} obj wrapper for to- and activationToken value
+    * Sends a mail, containing new activation-link for a specific user-account, to an user
+    * @param {object} obj wrapper for several mailOptions
     * @param {string | string[]} obj.to Address of one or many mail-recipients
-    * @param {string} activationToken Token, which is expected from server for activating a user-account
+    * @param {string} obj.activationToken Token, which is expected from server for activating a user-account
+    * @param {number} obj.tokenExpiresAfter Activation token is only valid for specified number of hours
     * @returns {Promise<SentMessageInfo>} Information about sent message
     */
-    public static async sendActivationTokenMail({to, activationToken}: {to: string | string[],
-                                                activationToken: string}): Promise<SentMessageInfo> {
+    public static async sendActivationTokenMail({to, activationToken, tokenExpiresAfter}: {to: string | string[],
+                                        activationToken: string, tokenExpiresAfter: number}): Promise<SentMessageInfo> {
         const activationLink = [
                 this.getApiUrl(URL_TYPE.ACTIVATION),
                 activationToken
             ].join("/"),
-            subject =  "Kotori - Your activation link",
+            subject =  "Your activation link",
             text = `Konichiwa ${to}!
 
                     You requested a new link for activating your previously created user account on Kotori.
@@ -105,6 +112,9 @@ export class AppMailer {
 
                     If the link does not open, copy the URL directly into your browser.
 
+                    For security reasons the activation-link expires automatically after ${tokenExpiresAfter} hour.
+                    If your link expired too soon, visit https://${this.hostName} and request a new activation-link.
+
                     Cheerfully yours,
                     The Kotori Team`,
             mailOptions = this.getMailOptions({to, subject, text});
@@ -114,12 +124,39 @@ export class AppMailer {
 
     /**
      * Sends mail, containing password-reset-link for a specific user-account, to an user
-     * @param {object} obj wrapper for to- and activationToken value
+     * @param {object} obj wrapper for several mailOptions
      * @param {string | string[]} obj.to Address of one or many mail-recipients
-     * @param {string} activationToken Token, which is expected from server for resetting password of a user-account
+     * @param {string} obj.pwResetToken Token, which is expected from server for resetting password of a user-account
+     * * @param {number} obj.tokenExpiresAfter Password-reset-token is only valid for specified number of hours
      * @returns {Promise<SentMessageInfo>} Information about sent message
      */
-    public static async sendForgotPwMail({to, pwResetToken}: {to: string, pwResetToken: string}) {
+    public static async sendForgotPwMail({to, pwResetToken, tokenExpiresAfter}: {to: string | string[],
+                                        pwResetToken: string, tokenExpiresAfter: number}): Promise<SentMessageInfo> {
+        const pwResetLink = [
+                this.getApiUrl(URL_TYPE.PW_RESET),
+                pwResetToken
+            ],
+            subject = "Reset your Password",
+            text = `Konichiwa ${to}!
 
+                We have received a request to reset your password.
+
+                If you did not request a password reset, you can safely ignore this email.
+                Only a person with access to your email can reset your account password.
+
+                To reset your password, please click on the link below:
+                ${pwResetLink}
+
+                If the link does not open, copy the URL directly into your browser.
+
+                For security reasons the password-reset-link expires automatically after ${tokenExpiresAfter} hour.
+                If your link expired too soon, visit https://${this.hostName} and request a new password-reset-link.
+
+                Cheerfully yours,
+                The Kotori Team
+            `,
+            mailOptions = this.getMailOptions({to, subject, text});
+
+        return await this.mailer.send(mailOptions);
     }
 }

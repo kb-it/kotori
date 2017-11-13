@@ -21,6 +21,14 @@ type ValidationResult = {
 @JsonController()
 export class UserController {
     private jwt = JWT.getInstance();
+    /**
+     * @member Number of hours an activation-token will be valid
+     */
+    private activationTokenExpiration = 1;
+    /**
+     * @member Number of hours an password-reset-token will be valid
+     */
+    private passwordResetTokenExpiration = 1;
 
     /**
      * @description Checks if passed mail-address is valid
@@ -117,12 +125,15 @@ export class UserController {
             activationToken = await UserModel.create(user);
 
             jsonResponse.success = true;
-            // Return activationToken in testmode for being able to test functionality in unit-tests
+            // Do not send mails in testmode, but return activationToken for unit-testing
             if (AppConfig.APP_TESTMODE_ENABLED) {
                 jsonResponse.testExclusive = activationToken;
-                await AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
             } else {
-                await AppMailer.sendRegistrationMail({to: user.mail, activationToken: activationToken});
+                await AppMailer.sendRegistrationMail({
+                    to: user.mail,
+                    activationToken,
+                    tokenExpiresAfter: this.activationTokenExpiration
+                });
             }
         } else {
             response.status(HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY);
@@ -135,7 +146,7 @@ export class UserController {
      * @description Activates a user-account, determined by its activation token
      * @param {UUID} activationToken UUID of a activation-token
      * @param {Response} response Response of current request
-     * @param {number} testTokenExpiration Optional amount of hours an activation token is valid.
+     * @param {number} testTokenExpiration Optional number of hours an activation token is valid.
      *     Will only be considered if APP_TESTMODE_ENABLED is set to true,
      *     as parameters only purpose is enabling to test token expiration with unit-tests.
      * * @returns {Promise<JSONResponse>} Result of current request, which specifies if request was successful
@@ -144,8 +155,7 @@ export class UserController {
     @Get(`/${apiVersion}/user/activation/:token`)
     async activate(@Param("token") activationToken: UUID,
                     @Res() response: Response, testTokenExpiration?: number): Promise<JSONResponse> {
-        const defaultTokenExpiration = 1,
-            tokenValidForHours = Utils.getTestmodeDependingValue(testTokenExpiration, defaultTokenExpiration);
+        const tokenValidForHours = Utils.getTestmodeDependingValue(testTokenExpiration, this.activationTokenExpiration);
         let success: boolean,
             jsonResponse: JSONResponse = {
                 success: false
@@ -195,11 +205,15 @@ export class UserController {
 
                 if (activationToken) {
                     jsonResponse.success = true;
-                    // Return activationToken in testmode for being able to test functionality in unit-tests
+                    // Do not send mails in testmode, but return activationToken for unit-testing
                     if (AppConfig.APP_TESTMODE_ENABLED) {
                         jsonResponse.testExclusive = activationToken;
                     } else {
-                        // TBD: Send activation token via mail to user!
+                        await AppMailer.sendActivationTokenMail({
+                            to: mail,
+                            activationToken,
+                            tokenExpiresAfter: this.activationTokenExpiration
+                        });
                     }
                 } else {
                     throw new TypeError(`Account must be activated already.`);
@@ -264,12 +278,16 @@ export class UserController {
         if (validationResult.isValid) {
             pwResetToken = await UserModel.createPasswordResetToken(mail);
 
-            // Return pwResetToken in testmode for being able to test functionality in unit-tests
+            // Do not send mails in testmode, but return pwResetToken for unit-testing
             jsonResponse.success = true;
             if (AppConfig.APP_TESTMODE_ENABLED) {
                 jsonResponse.testExclusive = pwResetToken;
             } else {
-                // TBD: Send password-reset-token via mail to user!
+                await AppMailer.sendForgotPwMail({
+                    to: mail,
+                    pwResetToken,
+                    tokenExpiresAfter: this.passwordResetTokenExpiration
+                });
             }
         } else {
             response.status(HTTP_STATUS_CODE.UNPROCESSABLE_ENTITY);
@@ -285,17 +303,17 @@ export class UserController {
      * @param {object} obj Wrapper for a password
      * @param {string} obj.password Value the password of the user-account will be set to
      * @param {Response} response Response for current request
-     * @param {number} testTokenExpiration Optional amount of hours a password-reset-token is valid.
+     * @param {number} testTokenExpiration Optional number of hours a password-reset-token is valid.
      *    Will only be considered if APP_TESTMODE_ENABLED is set to true,
      *    as parameters only purpose is enabling to test token expiration with unit-tests
      * @returns {Promise<JSONResponse>} Result of current request, which specifies if request was successful
      *                          with an optional error message
      */
     @Post(`/${apiVersion}/user/resetpw/:token`)
-    async reset(@Param("token") token: string, {password}: {password: string},
+    async reset(@Param("token") token: string, @Body({required: true}) {password}: {password: string},
                 @Res() response: Response, testTokenExpiration?: number): Promise<JSONResponse> {
-        const defaultTokenExpiration = 1,
-            tokenValidForHours = Utils.getTestmodeDependingValue(testTokenExpiration, defaultTokenExpiration),
+        const tokenValidForHours = Utils.getTestmodeDependingValue(testTokenExpiration,
+                                                                this.passwordResetTokenExpiration),
             validationResult = this.validatePassword(password);
         let success: boolean,
             jsonResponse: JSONResponse = {
