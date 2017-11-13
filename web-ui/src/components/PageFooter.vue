@@ -42,10 +42,6 @@
         background-color: #363636;
         color: #f5f5f5;
     }
-    .footerbar-container {
-        max-width: 960px;
-        margin: 0 auto;
-    }
     .footerbar-item {
         font-size: 12px;
         line-height: 1.25;

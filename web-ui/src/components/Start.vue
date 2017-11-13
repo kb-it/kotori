@@ -15,13 +15,13 @@
             <div class="content">
                 <div class="columns">
                     <div class="column">
-                        <a class="button is-large is-link" href="https://kotorimusic.ga/bin/kotori_tool_v.1.0.0.exe" title="Download Kotori Tool">
+                        <a class="button is-medium is-link" href="https://kotorimusic.ga/bin/kotori_tool_v.1.0.0.exe" title="Download Kotori Tool">
                             <span class="icon"><i class="fa fa-windows"></i></span>
                             <span>Download</span>
                         </a>
                     </div>
                     <div class="column">
-                        <a class="button is-large is-link" disabled>
+                        <a class="button is-medium is-danger" disabled>
                             <span class="icon"><i class="fa fa-apple"></i></span>
                             <span>Coming soon</span>
                         </a>

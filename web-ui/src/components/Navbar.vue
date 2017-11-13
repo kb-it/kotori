@@ -5,6 +5,23 @@
                 <img :src="require('@/assets/logo.png')" alt="Logo">
                 <span class="title is-4 has-text-light">Kotori</span>
             </router-link>
+            <div class="navbar-item has-dropdown is-hoverable is-hidden-desktop" v-if="currentUser">
+                <router-link to="/changepw" tag="a" class="navbar-item" title="Change password">
+                    <span class="icon"><i class="fa fa-user-circle"></i></span>
+                </router-link>
+
+                <div class="navbar-item">
+                    <a @click.prevent="logout()" class="navbar-item" title="Sign out">
+                        <span class="icon"><i class="fa fa-sign-out"></i></span>
+                    </a>
+                </div>
+            </div>
+            <router-link v-if="!currentUser" to="/register" tag="a" class="navbar-item is-hidden-desktop" title="Sign up">
+                <span class="icon"><i class="fa fa-user-plus"></i></span>
+            </router-link>
+            <router-link v-if="!currentUser" to="/login" tag="a" class="navbar-item is-hidden-desktop" title="Login">
+                <span class="icon"><i class="fa fa-sign-in"></i></span>
+            </router-link>
         </div>
         <div class="navbar-menu">
             <div class="navbar-end">
@@ -81,6 +98,9 @@
 </script>
 <style>
     @import "~bulma/css/bulma.css";
+    .hero .navbar.is-dark {
+        background-color: #363636;
+    }
     .navbar-logo {
         padding: 0 1.5rem;
     }
