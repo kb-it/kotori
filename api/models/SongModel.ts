@@ -132,7 +132,7 @@ export class SongModel {
                     FROM fingerprint
                     ORDER BY score DESC
                     LIMIT 15
-                ) matches ON matches.score>0.01
+                ) matches ON matches.score>0.05
                 INNER JOIN track ON track.id_fingerprint = matches.id
                 INNER JOIN tag ON tag.id_track = track.id
                 INNER JOIN tag_type ON tag.id_tag_type = tag_type.id
